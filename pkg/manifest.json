@@ -49,7 +49,8 @@
         "CLIO_LETTERHEADS": "${user_config.letterheads}",
         "CLIO_INTERNAL_TEMPLATE": "${user_config.internal_template}",
         "CLIO_DOCX_INDENT_CM": "${user_config.docx_indent_cm}",
-        "CLIO_DOCX_LABELS": "${user_config.docx_labels}"
+        "CLIO_DOCX_LABELS": "${user_config.docx_labels}",
+        "CLIO_LOCALE": "${user_config.locale}"
       }
     }
   },
@@ -290,6 +291,13 @@
       "title": "Clio region",
       "description": "Region of your Clio account: us (app.clio.com), eu (eu.app.clio.com), ca (ca.app.clio.com) or au (au.app.clio.com). Required.",
       "required": true
+    },
+    "locale": {
+      "type": "string",
+      "title": "Language of messages",
+      "description": "Language of the connector's messages (previews, errors, notes): en (default) or cs. Tool descriptions are always English; Claude answers in your language regardless.",
+      "required": false,
+      "default": "en"
     },
     "client_id": {
       "type": "string",

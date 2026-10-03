@@ -1,7 +1,8 @@
-/** Spisy, kontakty, úkoly, kalendář, poznámky, komunikace, uživatelé, custom fields. */
+/** Matters, contacts, tasks, calendar, notes, communications, users, custom fields. */
 import { z } from "zod";
 import { apiRequest, apiList, apiListAll } from "../client.js";
 import { loadTokens } from "../store.js";
+import { t } from "../i18n.js";
 import { text, json, wrap, preview, confirmSchema, compact, dateSchema, type Registrar } from "./common.js";
 
 const MATTER_FIELDS =
@@ -16,21 +17,21 @@ const NOTE_FIELDS = "id,type,subject,detail,date,created_at,updated_at,matter{id
 const COMM_FIELDS = "id,type,subject,body,date,received_at,created_at,matter{id,display_number},user{id,name},senders{id,name,type},receivers{id,name,type}";
 
 export const registerMatters: Registrar = (server) => {
-  // ---------- Spisy ----------
+  // ---------- Matters ----------
   server.registerTool(
     "clio_matter_search",
     {
-      title: "Hledat spisy",
-      description: "Vyhledá spisy podle textu (číslo, popis), klienta, stavu (open/pending/closed), odpovědného advokáta, oblasti práva. Vrací základní údaje včetně id spisu potřebného pro ostatní nástroje.",
+      title: "Search matters",
+      description: "Searches matters by text (number, description), client, status (open/pending/closed), responsible attorney or practice area. Returns basic details including the matter id needed by the other tools.",
       inputSchema: {
-        query: z.string().optional().describe("Text v display_number, number nebo description"),
+        query: z.string().optional().describe("Text in display_number, number or description"),
         client_id: z.number().int().optional(),
-        status: z.enum(["open", "pending", "closed"]).optional().describe("Lze i více oddělených čárkou, např. 'open,pending'"),
+        status: z.enum(["open", "pending", "closed"]).optional().describe("Several values may be comma-separated, e.g. 'open,pending'"),
         responsible_attorney_id: z.number().int().optional(),
         practice_area_id: z.number().int().optional(),
-        updated_since: z.string().optional().describe("ISO datum/čas"),
+        updated_since: z.string().optional().describe("ISO date/time"),
         order: z.enum(["display_number(asc)", "display_number(desc)", "open_date(desc)", "updated_at(desc)", "client.name(asc)", "id(asc)"]).optional(),
-        limit: z.number().int().min(1).max(200).optional().describe("Výchozí 25"),
+        limit: z.number().int().min(1).max(200).optional().describe("Default 25"),
         page_token: z.string().optional(),
       },
     },
@@ -43,8 +44,8 @@ export const registerMatters: Registrar = (server) => {
   server.registerTool(
     "clio_matter_get",
     {
-      title: "Detail spisu",
-      description: "Vrátí detail spisu včetně klienta, custom fields, zůstatků, lhůty (statute of limitations), vztahů a související kontakty. Volitelně i souhrn nevyfakturovaného času.",
+      title: "Matter detail",
+      description: "Returns matter detail including client, custom fields, account balances, statute of limitations, relationships and related contacts. Optionally also a summary of unbilled time.",
       inputSchema: { matter_id: z.number().int(), include_related_contacts: z.boolean().optional(), include_unbilled: z.boolean().optional() },
     },
     wrap("clio_matter_get", async ({ matter_id, include_related_contacts, include_unbilled }: { matter_id: number; include_related_contacts?: boolean; include_unbilled?: boolean }) => {
@@ -65,8 +66,8 @@ export const registerMatters: Registrar = (server) => {
   server.registerTool(
     "clio_matter_create",
     {
-      title: "Založit spis",
-      description: "Založí nový spis: klient (client_id), popis, stav, zp. účtování, odpovědný advokát (výchozí přihlášený), oblast práva, custom fields. Zápis – vyžaduje confirm=true.",
+      title: "Create matter",
+      description: "Creates a new matter: client (client_id), description, status, billing method, responsible attorney (defaults to the signed-in user), practice area, custom fields. Write operation – requires confirm=true.",
       inputSchema: {
         client_id: z.number().int(),
         description: z.string(),
@@ -99,7 +100,7 @@ export const registerMatters: Registrar = (server) => {
         custom_field_values: a.custom_field_values?.map((c) => ({ custom_field: { id: c.custom_field_id }, value: c.value })),
       });
       if (a.billing_method) (body as Record<string, unknown>).billing_method = a.billing_method;
-      if (!a.confirm) return preview("Nový spis", body);
+      if (!a.confirm) return preview(t("matters.preview_new_matter"), body);
       const r = await apiRequest<{ data: unknown }>("POST", "/matters", { query: { fields: MATTER_FIELDS }, body });
       return json(r.data.data);
     })
@@ -108,8 +109,8 @@ export const registerMatters: Registrar = (server) => {
   server.registerTool(
     "clio_matter_update",
     {
-      title: "Upravit spis",
-      description: "Upraví spis: popis, stav (open/pending/closed), odpovědný advokát, oblast práva, custom fields, datum uzavření apod. Zápis – vyžaduje confirm=true.",
+      title: "Update matter",
+      description: "Updates a matter: description, status (open/pending/closed), responsible attorney, practice area, custom fields, close date etc. Write operation – requires confirm=true.",
       inputSchema: {
         matter_id: z.number().int(),
         description: z.string().optional(),
@@ -120,7 +121,7 @@ export const registerMatters: Registrar = (server) => {
         client_reference: z.string().optional(),
         location: z.string().optional(),
         billable: z.boolean().optional(),
-        custom_field_values: z.array(z.object({ id: z.number().int().optional().describe("id existující hodnoty (pro změnu)"), custom_field_id: z.number().int(), value: z.union([z.string(), z.number(), z.boolean()]) })).optional(),
+        custom_field_values: z.array(z.object({ id: z.number().int().optional().describe("id of the existing value (to change it)"), custom_field_id: z.number().int(), value: z.union([z.string(), z.number(), z.boolean()]) })).optional(),
         confirm: confirmSchema,
       },
     },
@@ -136,10 +137,10 @@ export const registerMatters: Registrar = (server) => {
         billable: a.billable,
         custom_field_values: a.custom_field_values?.map((c) => compact({ id: c.id, custom_field: { id: c.custom_field_id }, value: c.value })),
       });
-      if (!Object.keys(body).length) return text("Nebyla zadána žádná změna.");
+      if (!Object.keys(body).length) return text(t("matters.no_changes"));
       if (!a.confirm) {
         const cur = await apiRequest<{ data: unknown }>("GET", `/matters/${a.matter_id}`, { query: { fields: MATTER_FIELDS } });
-        return preview(`Úprava spisu ${a.matter_id}`, { current: cur.data.data, changes: body });
+        return preview(t("matters.preview_update_matter", { id: a.matter_id }), { current: cur.data.data, changes: body });
       }
       const r = await apiRequest<{ data: unknown }>("PATCH", `/matters/${a.matter_id}`, { query: { fields: MATTER_DETAIL }, body });
       return json(r.data.data);
@@ -148,7 +149,7 @@ export const registerMatters: Registrar = (server) => {
 
   server.registerTool(
     "clio_practice_areas_list",
-    { title: "Oblasti práva a stádia spisu", description: "Vypíše practice areas a matter stages (pro zakládání/úpravu spisů).", inputSchema: {} },
+    { title: "Practice areas and matter stages", description: "Lists practice areas and matter stages (for creating/updating matters).", inputSchema: {} },
     wrap("clio_practice_areas_list", async () => {
       const pa = await apiListAll("/practice_areas", { fields: "id,name,code,category" }, 500);
       const ms = await apiListAll("/matter_stages", { fields: "id,name,practice_area_id,order" }, 500);
@@ -159,8 +160,8 @@ export const registerMatters: Registrar = (server) => {
   server.registerTool(
     "clio_custom_fields_list",
     {
-      title: "Definice custom fields",
-      description: "Vypíše custom fields pro spisy nebo kontakty (id, název, typ, možnosti výběru) – nutné pro vyplnění custom_field_values.",
+      title: "Custom field definitions",
+      description: "Lists custom fields for matters or contacts (id, name, type, picklist options) – required to fill in custom_field_values.",
       inputSchema: { parent_type: z.enum(["Matter", "Contact"]).optional() },
     },
     wrap("clio_custom_fields_list", async ({ parent_type }: { parent_type?: string }) => {
@@ -169,18 +170,18 @@ export const registerMatters: Registrar = (server) => {
     })
   );
 
-  // ---------- Kontakty ----------
+  // ---------- Contacts ----------
   server.registerTool(
     "clio_contact_search",
     {
-      title: "Hledat kontakty",
-      description: "Vyhledá osoby a společnosti podle jména, e-mailu nebo telefonu (query); volitelně jen klienty nebo jen typ Person/Company.",
+      title: "Search contacts",
+      description: "Searches people and companies by name, e-mail or phone (query); optionally only clients or only type Person/Company.",
       inputSchema: {
         query: z.string().optional(),
         type: z.enum(["Person", "Company"]).optional(),
         client_only: z.boolean().optional(),
         ids: z.array(z.number().int()).optional(),
-        limit: z.number().int().min(1).max(200).optional().describe("Výchozí 25"),
+        limit: z.number().int().min(1).max(200).optional().describe("Default 25"),
         page_token: z.string().optional(),
       },
     },
@@ -195,8 +196,8 @@ export const registerMatters: Registrar = (server) => {
   server.registerTool(
     "clio_contact_get",
     {
-      title: "Detail kontaktu",
-      description: "Vrátí detail kontaktu včetně všech e-mailů, telefonů, adres a custom fields; volitelně i seznam jeho spisů.",
+      title: "Contact detail",
+      description: "Returns contact detail including all e-mail addresses, phone numbers, addresses and custom fields; optionally also the list of the contact's matters.",
       inputSchema: { contact_id: z.number().int(), include_matters: z.boolean().optional() },
     },
     wrap("clio_contact_get", async ({ contact_id, include_matters }: { contact_id: number; include_matters?: boolean }) => {
@@ -215,28 +216,28 @@ export const registerMatters: Registrar = (server) => {
   server.registerTool(
     "clio_contact_create",
     {
-      title: "Založit kontakt",
-      description: "Založí osobu (first_name + last_name) nebo společnost (name) s e-maily, telefony, adresou, IČ/DIČ (sales_tax_number), vazbou na společnost. Zápis – vyžaduje confirm=true.",
+      title: "Create contact",
+      description: "Creates a person (first_name + last_name) or a company (name) with e-mail addresses, phone numbers, address, tax/VAT number (sales_tax_number) and a link to a company. Write operation – requires confirm=true.",
       inputSchema: {
         type: z.enum(["Person", "Company"]),
-        name: z.string().optional().describe("Název společnosti (Company)"),
+        name: z.string().optional().describe("Company name (Company)"),
         first_name: z.string().optional(),
         last_name: z.string().optional(),
-        prefix: z.string().optional().describe("Titul před jménem"),
-        title: z.string().optional().describe("Funkce/titul"),
+        prefix: z.string().optional().describe("Title before the name (e.g. Dr., Mr.)"),
+        title: z.string().optional().describe("Job title / position"),
         email: z.string().optional(),
         phone: z.string().optional(),
         address: addressSchema.optional(),
         company_id: z.number().int().optional(),
         date_of_birth: dateSchema.optional(),
-        sales_tax_number: z.string().optional().describe("DIČ / daňové číslo"),
+        sales_tax_number: z.string().optional().describe("VAT / tax identification number"),
         custom_field_values: z.array(z.object({ custom_field_id: z.number().int(), value: z.union([z.string(), z.number(), z.boolean()]) })).optional(),
         confirm: confirmSchema,
       },
     },
     wrap("clio_contact_create", async (a: { type: "Person" | "Company"; name?: string; first_name?: string; last_name?: string; prefix?: string; title?: string; email?: string; phone?: string; address?: Record<string, string | undefined>; company_id?: number; date_of_birth?: string; sales_tax_number?: string; custom_field_values?: { custom_field_id: number; value: unknown }[]; confirm?: boolean }) => {
-      if (a.type === "Company" && !a.name) return text("Pro Company zadejte name.");
-      if (a.type === "Person" && !(a.first_name && a.last_name)) return text("Pro Person zadejte first_name a last_name.");
+      if (a.type === "Company" && !a.name) return text(t("matters.company_requires_name"));
+      if (a.type === "Person" && !(a.first_name && a.last_name)) return text(t("matters.person_requires_names"));
       const body = compact({
         type: a.type,
         name: a.type === "Company" ? a.name : undefined,
@@ -253,7 +254,7 @@ export const registerMatters: Registrar = (server) => {
         custom_field_values: a.custom_field_values?.map((c) => ({ custom_field: { id: c.custom_field_id }, value: c.value })),
       });
       if (a.type === "Person") (body as Record<string, unknown>).name = `${a.first_name} ${a.last_name}`;
-      if (!a.confirm) return preview("Nový kontakt", body);
+      if (!a.confirm) return preview(t("matters.preview_new_contact"), body);
       const r = await apiRequest<{ data: unknown }>("POST", "/contacts", { query: { fields: CONTACT_DETAIL }, body });
       return json(r.data.data);
     })
@@ -262,8 +263,8 @@ export const registerMatters: Registrar = (server) => {
   server.registerTool(
     "clio_contact_update",
     {
-      title: "Upravit kontakt",
-      description: "Upraví základní údaje kontaktu; přidá e-mail/telefon/adresu (existující zůstávají). Zápis – vyžaduje confirm=true.",
+      title: "Update contact",
+      description: "Updates a contact's basic details; adds an e-mail address/phone number/address (existing ones are kept). Write operation – requires confirm=true.",
       inputSchema: {
         contact_id: z.number().int(),
         name: z.string().optional(),
@@ -294,28 +295,28 @@ export const registerMatters: Registrar = (server) => {
         sales_tax_number: a.sales_tax_number,
         custom_field_values: a.custom_field_values?.map((c) => compact({ id: c.id, custom_field: { id: c.custom_field_id }, value: c.value })),
       });
-      if (!Object.keys(body).length) return text("Nebyla zadána žádná změna.");
+      if (!Object.keys(body).length) return text(t("matters.no_changes"));
       if (!a.confirm) {
         const cur = await apiRequest<{ data: unknown }>("GET", `/contacts/${a.contact_id}`, { query: { fields: CONTACT_FIELDS } });
-        return preview(`Úprava kontaktu ${a.contact_id}`, { current: cur.data.data, changes: body });
+        return preview(t("matters.preview_update_contact", { id: a.contact_id }), { current: cur.data.data, changes: body });
       }
       const r = await apiRequest<{ data: unknown }>("PATCH", `/contacts/${a.contact_id}`, { query: { fields: CONTACT_DETAIL }, body });
       return json(r.data.data);
     })
   );
 
-  // ---------- Úkoly ----------
+  // ---------- Tasks ----------
   server.registerTool(
     "clio_task_list",
     {
-      title: "Úkoly",
-      description: "Vypíše úkoly podle spisu, řešitele, stavu, termínu (od–do) nebo textu. Výchozí: nedokončené úkoly přihlášeného uživatele seřazené podle termínu.",
+      title: "Tasks",
+      description: "Lists tasks by matter, assignee, status, due date (from–to) or text. Default: the signed-in user's incomplete tasks sorted by due date.",
       inputSchema: {
         matter_id: z.number().int().optional(),
-        assignee_id: z.number().int().optional().describe("ID uživatele; výchozí přihlášený, pokud není matter_id"),
-        all_assignees: z.boolean().optional().describe("true = úkoly všech"),
+        assignee_id: z.number().int().optional().describe("User ID; defaults to the signed-in user unless matter_id is given"),
+        all_assignees: z.boolean().optional().describe("true = tasks of all users"),
         status: z.enum(["pending", "in_progress", "in_review", "complete", "draft"]).optional(),
-        complete: z.boolean().optional().describe("false = jen nedokončené (výchozí), true = jen dokončené"),
+        complete: z.boolean().optional().describe("false = only incomplete (default), true = only completed"),
         due_at_from: dateSchema.optional(),
         due_at_to: dateSchema.optional(),
         query: z.string().optional(),
@@ -335,17 +336,17 @@ export const registerMatters: Registrar = (server) => {
   server.registerTool(
     "clio_task_create",
     {
-      title: "Vytvořit úkol",
-      description: "Vytvoří úkol ke spisu (nebo obecný) s termínem, prioritou a řešitelem (výchozí přihlášený). Zápis – vyžaduje confirm=true.",
+      title: "Create task",
+      description: "Creates a task for a matter (or a general one) with a due date, priority and assignee (defaults to the signed-in user). Write operation – requires confirm=true.",
       inputSchema: {
         name: z.string(),
         description: z.string().optional(),
         matter_id: z.number().int().optional(),
-        due_at: z.string().optional().describe("YYYY-MM-DD nebo ISO datum/čas"),
+        due_at: z.string().optional().describe("YYYY-MM-DD or ISO date/time"),
         priority: z.enum(["High", "Normal", "Low"]).optional(),
         assignee_id: z.number().int().optional(),
         task_type_id: z.number().int().optional(),
-        statute_of_limitations: z.boolean().optional().describe("true = označit jako lhůtu (promlčení/prekluze)"),
+        statute_of_limitations: z.boolean().optional().describe("true = mark as a statute of limitations deadline"),
         notify_assignee: z.boolean().optional(),
         confirm: confirmSchema,
       },
@@ -365,7 +366,7 @@ export const registerMatters: Registrar = (server) => {
         notify_assignee: a.notify_assignee,
         status: "pending",
       });
-      if (!a.confirm) return preview("Nový úkol", body);
+      if (!a.confirm) return preview(t("matters.preview_new_task"), body);
       const r = await apiRequest<{ data: unknown }>("POST", "/tasks", { query: { fields: TASK_FIELDS }, body });
       return json(r.data.data);
     })
@@ -374,8 +375,8 @@ export const registerMatters: Registrar = (server) => {
   server.registerTool(
     "clio_task_update",
     {
-      title: "Upravit / dokončit úkol",
-      description: "Upraví úkol (název, popis, termín, priorita, řešitel) nebo změní stav – status=complete úkol dokončí. Zápis – vyžaduje confirm=true.",
+      title: "Update / complete task",
+      description: "Updates a task (name, description, due date, priority, assignee) or changes its status – status=complete marks the task as done. Write operation – requires confirm=true.",
       inputSchema: {
         task_id: z.number().int(),
         name: z.string().optional(),
@@ -389,22 +390,22 @@ export const registerMatters: Registrar = (server) => {
     },
     wrap("clio_task_update", async (a: { task_id: number; name?: string; description?: string; due_at?: string; priority?: string; status?: string; assignee_id?: number; confirm?: boolean }) => {
       const body = compact({ name: a.name, description: a.description, due_at: a.due_at && a.due_at.length === 10 ? `${a.due_at}T17:00:00` : a.due_at, priority: a.priority, status: a.status, assignee: a.assignee_id ? { id: a.assignee_id, type: "User" } : undefined });
-      if (!Object.keys(body).length) return text("Nebyla zadána žádná změna.");
-      if (!a.confirm) return preview(`Úprava úkolu ${a.task_id}`, body);
+      if (!Object.keys(body).length) return text(t("matters.no_changes"));
+      if (!a.confirm) return preview(t("matters.preview_update_task", { id: a.task_id }), body);
       const r = await apiRequest<{ data: unknown }>("PATCH", `/tasks/${a.task_id}`, { query: { fields: TASK_FIELDS }, body });
       return json(r.data.data);
     })
   );
 
-  // ---------- Kalendář ----------
+  // ---------- Calendar ----------
   server.registerTool(
     "clio_calendar_entries_list",
     {
-      title: "Kalendář",
-      description: "Vypíše události kalendáře v období (from–to), volitelně jen ke spisu nebo z konkrétního kalendáře. Výchozí: kalendáře přihlášeného uživatele.",
+      title: "Calendar",
+      description: "Lists calendar entries in a period (from–to), optionally only for a matter or from a specific calendar. Default: the signed-in user's calendars.",
       inputSchema: {
-        from: z.string().describe("Od, YYYY-MM-DD nebo ISO"),
-        to: z.string().describe("Do, YYYY-MM-DD nebo ISO"),
+        from: z.string().describe("From, YYYY-MM-DD or ISO"),
+        to: z.string().describe("To, YYYY-MM-DD or ISO"),
         matter_id: z.number().int().optional(),
         calendar_id: z.number().int().optional(),
         query: z.string().optional(),
@@ -422,7 +423,7 @@ export const registerMatters: Registrar = (server) => {
 
   server.registerTool(
     "clio_calendars_list",
-    { title: "Seznam kalendářů", description: "Vypíše kalendáře dostupné přihlášenému uživateli (id pro vytváření událostí) a typy událostí.", inputSchema: {} },
+    { title: "List calendars", description: "Lists the calendars available to the signed-in user (ids for creating calendar entries) and the calendar entry event types.", inputSchema: {} },
     wrap("clio_calendars_list", async () => {
       const cal = await apiListAll("/calendars", { fields: "id,name,type,color,permission,visible,source" }, 200);
       const types = await apiListAll("/calendar_entry_event_types", { fields: "id,name,color" }, 200);
@@ -433,19 +434,19 @@ export const registerMatters: Registrar = (server) => {
   server.registerTool(
     "clio_calendar_entry_create",
     {
-      title: "Vytvořit událost v kalendáři",
-      description: "Vytvoří událost (jednání, lhůta, schůzka) v kalendáři uživatele (výchozí default kalendář), volitelně ke spisu, s účastníky a typem. Zápis – vyžaduje confirm=true.",
+      title: "Create calendar entry",
+      description: "Creates a calendar entry (hearing, deadline, meeting) in the user's calendar (defaults to the default calendar), optionally linked to a matter, with attendees and an event type. Write operation – requires confirm=true.",
       inputSchema: {
-        summary: z.string().describe("Název události"),
-        start_at: z.string().describe("ISO datum/čas, nebo YYYY-MM-DD pro celodenní"),
-        end_at: z.string().optional().describe("ISO datum/čas; u celodenní nepovinné"),
+        summary: z.string().describe("Title of the calendar entry"),
+        start_at: z.string().describe("ISO date/time, or YYYY-MM-DD for an all-day entry"),
+        end_at: z.string().optional().describe("ISO date/time; optional for all-day entries"),
         all_day: z.boolean().optional(),
         description: z.string().optional(),
         location: z.string().optional(),
         matter_id: z.number().int().optional(),
-        calendar_id: z.number().int().optional().describe("Výchozí default kalendář uživatele"),
+        calendar_id: z.number().int().optional().describe("Defaults to the user's default calendar"),
         event_type_id: z.number().int().optional(),
-        attendee_calendar_ids: z.array(z.number().int()).optional().describe("ID kalendářů dalších uživatelů (viz clio_calendars_list)"),
+        attendee_calendar_ids: z.array(z.number().int()).optional().describe("Calendar IDs of other users (see clio_calendars_list)"),
         attendee_contact_ids: z.array(z.number().int()).optional(),
         send_email_notification: z.boolean().optional(),
         confirm: confirmSchema,
@@ -454,7 +455,7 @@ export const registerMatters: Registrar = (server) => {
     wrap("clio_calendar_entry_create", async (a: { summary: string; start_at: string; end_at?: string; all_day?: boolean; description?: string; location?: string; matter_id?: number; calendar_id?: number; event_type_id?: number; attendee_calendar_ids?: number[]; attendee_contact_ids?: number[]; send_email_notification?: boolean; confirm?: boolean }) => {
       const allDay = a.all_day ?? a.start_at.length === 10;
       const calId = a.calendar_id ?? (await apiRequest<{ data: { default_calendar_id?: number } }>("GET", "/users/who_am_i", { query: { fields: "default_calendar_id" } })).data.data.default_calendar_id;
-      if (!calId) return text("Nelze určit kalendář – zadejte calendar_id (viz clio_calendars_list).");
+      if (!calId) return text(t("matters.calendar_not_determined"));
       const start = allDay && a.start_at.length === 10 ? `${a.start_at}T00:00:00` : a.start_at;
       const end = a.end_at ?? (allDay ? `${a.start_at.slice(0, 10)}T23:59:59` : new Date(new Date(a.start_at).getTime() + 3600e3).toISOString());
       const attendees = [...(a.attendee_calendar_ids ?? []).map((id) => ({ id, type: "Calendar" })), ...(a.attendee_contact_ids ?? []).map((id) => ({ id, type: "Contact" }))];
@@ -471,7 +472,7 @@ export const registerMatters: Registrar = (server) => {
         attendees: attendees.length ? attendees : undefined,
         send_email_notification: a.send_email_notification,
       });
-      if (!a.confirm) return preview("Nová událost", body);
+      if (!a.confirm) return preview(t("matters.preview_new_calendar_entry"), body);
       const r = await apiRequest<{ data: unknown }>("POST", "/calendar_entries", { query: { fields: CAL_FIELDS }, body });
       return json(r.data.data);
     })
@@ -480,29 +481,29 @@ export const registerMatters: Registrar = (server) => {
   server.registerTool(
     "clio_calendar_entry_update",
     {
-      title: "Upravit událost",
-      description: "Upraví název, čas, místo, popis nebo spis události. Zápis – vyžaduje confirm=true.",
+      title: "Update calendar entry",
+      description: "Updates the title, time, location, description or matter of a calendar entry. Write operation – requires confirm=true.",
       inputSchema: { entry_id: z.number().int(), summary: z.string().optional(), start_at: z.string().optional(), end_at: z.string().optional(), all_day: z.boolean().optional(), description: z.string().optional(), location: z.string().optional(), matter_id: z.number().int().optional(), confirm: confirmSchema },
     },
     wrap("clio_calendar_entry_update", async ({ entry_id, matter_id, confirm, ...rest }: { entry_id: number; matter_id?: number; confirm?: boolean } & Record<string, unknown>) => {
       const body = compact({ ...rest, matter: matter_id ? { id: matter_id } : undefined });
-      if (!Object.keys(body).length) return text("Nebyla zadána žádná změna.");
-      if (!confirm) return preview(`Úprava události ${entry_id}`, body);
+      if (!Object.keys(body).length) return text(t("matters.no_changes"));
+      if (!confirm) return preview(t("matters.preview_update_calendar_entry", { id: entry_id }), body);
       const r = await apiRequest<{ data: unknown }>("PATCH", `/calendar_entries/${entry_id}`, { query: { fields: CAL_FIELDS }, body });
       return json(r.data.data);
     })
   );
 
-  // ---------- Poznámky a komunikace ----------
+  // ---------- Notes and communications ----------
   server.registerTool(
     "clio_notes_list",
     {
-      title: "Poznámky ke spisu / kontaktu",
-      description: "Vypíše poznámky (notes) spisu nebo kontaktu, nejnovější první.",
+      title: "Matter / contact notes",
+      description: "Lists the notes of a matter or a contact, newest first.",
       inputSchema: { matter_id: z.number().int().optional(), contact_id: z.number().int().optional(), query: z.string().optional(), limit: z.number().int().min(1).max(200).optional(), page_token: z.string().optional() },
     },
     wrap("clio_notes_list", async ({ matter_id, contact_id, query, limit, page_token }: { matter_id?: number; contact_id?: number; query?: string; limit?: number; page_token?: string }) => {
-      if (!matter_id && !contact_id) return text("Zadejte matter_id nebo contact_id.");
+      if (!matter_id && !contact_id) return text(t("matters.matter_or_contact_required"));
       const r = await apiList("/notes", { ...compact({ matter_id, contact_id, query, type: matter_id ? "Matter" : "Contact" }), fields: NOTE_FIELDS, limit: limit ?? 50, order: "date(desc)" }, { page_token });
       return json({ has_more: r.has_more, next_page_token: r.next_page_token, notes: r.data });
     })
@@ -511,14 +512,14 @@ export const registerMatters: Registrar = (server) => {
   server.registerTool(
     "clio_note_create",
     {
-      title: "Přidat poznámku",
-      description: "Přidá poznámku ke spisu nebo kontaktu (předmět + text). Zápis – vyžaduje confirm=true.",
+      title: "Add note",
+      description: "Adds a note to a matter or a contact (subject + text). Write operation – requires confirm=true.",
       inputSchema: { matter_id: z.number().int().optional(), contact_id: z.number().int().optional(), subject: z.string(), detail: z.string(), date: dateSchema.optional(), confirm: confirmSchema },
     },
     wrap("clio_note_create", async ({ matter_id, contact_id, subject, detail, date, confirm }: { matter_id?: number; contact_id?: number; subject: string; detail: string; date?: string; confirm?: boolean }) => {
-      if (!matter_id && !contact_id) return text("Zadejte matter_id nebo contact_id.");
+      if (!matter_id && !contact_id) return text(t("matters.matter_or_contact_required"));
       const body = compact({ type: matter_id ? "Matter" : "Contact", matter: matter_id ? { id: matter_id } : undefined, contact: contact_id ? { id: contact_id } : undefined, subject, detail, date: date ?? new Date().toISOString().slice(0, 10) });
-      if (!confirm) return preview("Nová poznámka", body);
+      if (!confirm) return preview(t("matters.preview_new_note"), body);
       const r = await apiRequest<{ data: unknown }>("POST", "/notes", { query: { fields: NOTE_FIELDS }, body });
       return json(r.data.data);
     })
@@ -527,12 +528,12 @@ export const registerMatters: Registrar = (server) => {
   server.registerTool(
     "clio_communications_list",
     {
-      title: "Komunikace (e-maily, hovory)",
-      description: "Vypíše zalogovanou komunikaci (EmailCommunication, PhoneCommunication) ke spisu nebo kontaktu, nejnovější první; volitelně podle textu nebo období.",
+      title: "Communications (e-mails, calls)",
+      description: "Lists logged communications (EmailCommunication, PhoneCommunication) of a matter or a contact, newest first; optionally filtered by text or period.",
       inputSchema: { matter_id: z.number().int().optional(), contact_id: z.number().int().optional(), query: z.string().optional(), received_since: z.string().optional(), type: z.enum(["EmailCommunication", "PhoneCommunication"]).optional(), limit: z.number().int().min(1).max(200).optional(), page_token: z.string().optional() },
     },
     wrap("clio_communications_list", async (a: { matter_id?: number; contact_id?: number; query?: string; received_since?: string; type?: string; limit?: number; page_token?: string }) => {
-      if (!a.matter_id && !a.contact_id && !a.query) return text("Zadejte matter_id, contact_id nebo query.");
+      if (!a.matter_id && !a.contact_id && !a.query) return text(t("matters.matter_contact_or_query_required"));
       const r = await apiList("/communications", { ...compact({ ...a, limit: undefined, page_token: undefined }), fields: COMM_FIELDS, limit: a.limit ?? 50, order: "date(desc)" }, { page_token: a.page_token });
       return json({ has_more: r.has_more, next_page_token: r.next_page_token, communications: r.data });
     })
@@ -541,16 +542,16 @@ export const registerMatters: Registrar = (server) => {
   server.registerTool(
     "clio_communication_log",
     {
-      title: "Zalogovat komunikaci",
-      description: "Zapíše do spisu záznam o hovoru nebo e-mailu (předmět, obsah, datum, odesílatel/příjemce = uživatel nebo kontakt). Zápis – vyžaduje confirm=true.",
+      title: "Log communication",
+      description: "Logs a record of a phone call or an e-mail to a matter (subject, body, date, sender/receiver = user or contact). Write operation – requires confirm=true.",
       inputSchema: {
         matter_id: z.number().int(),
         type: z.enum(["PhoneCommunication", "EmailCommunication"]),
         subject: z.string(),
         body: z.string(),
-        received_at: z.string().optional().describe("ISO datum/čas; výchozí teď"),
-        contact_id: z.number().int().optional().describe("Protistrana komunikace (kontakt)"),
-        direction: z.enum(["outgoing", "incoming"]).optional().describe("outgoing = odesílá uživatel kontaktu (výchozí)"),
+        received_at: z.string().optional().describe("ISO date/time; defaults to now"),
+        contact_id: z.number().int().optional().describe("The other party of the communication (contact)"),
+        direction: z.enum(["outgoing", "incoming"]).optional().describe("outgoing = the user sends to the contact (default)"),
         confirm: confirmSchema,
       },
     },
@@ -560,16 +561,16 @@ export const registerMatters: Registrar = (server) => {
       const contact = a.contact_id ? [{ id: a.contact_id, type: "Contact" }] : [];
       const outgoing = (a.direction ?? "outgoing") === "outgoing";
       const body = compact({ type: a.type, subject: a.subject, body: a.body, received_at: a.received_at ?? new Date().toISOString(), matter: { id: a.matter_id }, senders: outgoing ? user : contact, receivers: outgoing ? contact : user });
-      if (!a.confirm) return preview("Záznam komunikace", body);
+      if (!a.confirm) return preview(t("matters.preview_communication_log"), body);
       const r = await apiRequest<{ data: unknown }>("POST", "/communications", { query: { fields: COMM_FIELDS }, body });
       return json(r.data.data);
     })
   );
 
-  // ---------- Uživatelé ----------
+  // ---------- Users ----------
   server.registerTool(
     "clio_users_list",
-    { title: "Uživatelé kanceláře", description: "Vypíše uživatele Clio (id, jméno, e-mail, role, sazba) – pro přiřazení úkolů, spisů a zápis času za jiného uživatele.", inputSchema: { enabled_only: z.boolean().optional() } },
+    { title: "Firm users", description: "Lists Clio users (id, name, e-mail, roles, rate) – for assigning tasks and matters and for recording time on behalf of another user.", inputSchema: { enabled_only: z.boolean().optional() } },
     wrap("clio_users_list", async ({ enabled_only }: { enabled_only?: boolean }) => {
       const r = await apiListAll("/users", { ...compact({ enabled: enabled_only ? true : undefined }), fields: "id,name,email,enabled,subscription_type,roles,rate,default_calendar_id" }, 200);
       return json({ users: r.data });
@@ -578,7 +579,7 @@ export const registerMatters: Registrar = (server) => {
 
   server.registerTool(
     "clio_text_snippets_list",
-    { title: "Textové snippety", description: "Vypíše textové snippety (zkratky) kanceláře z Clio – opakované formulace pro dokumenty a poznámky.", inputSchema: { query: z.string().optional() } },
+    { title: "Text snippets", description: "Lists your firm's text snippets (shortcuts) from Clio – reusable phrases for documents and notes.", inputSchema: { query: z.string().optional() } },
     wrap("clio_text_snippets_list", async ({ query }: { query?: string }) => {
       const r = await apiListAll("/settings/text_snippets", { ...compact({ query }), fields: "id,phrase,snippet,created_at" }, 500);
       return json({ snippets: r.data });

@@ -5,7 +5,6 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Planned
-- English tool descriptions and messages with optional localisation (Czech included).
 - macOS and Linux builds (Keychain / Secret Service token store, native renderer for other platforms).
 - Optional listing in the Clio App Directory.
 
@@ -14,6 +13,7 @@ All notable changes to this project are documented here. The format follows [Kee
 First public version, derived from an internal connector that has been in daily use since September 2026 (internal versions 0.1–0.3.3).
 
 ### Added
+- English as the source language throughout (tool titles, descriptions, parameters, comments); runtime messages go through a small message catalog (`src/i18n.ts`, `src/locales/`) with English and Czech, selected by the *Language of messages* setting (`CLIO_LOCALE`).
 - Bring-your-own Developer Application: region, App Key and App Secret are entered in the extension settings; no credentials are shipped with the package.
 - Letterhead selection without firm-specific defaults: explicit `template`/`template_id` per call, per-user map, firm-wide default template, or the only template in Clio.
 - Configurable formatting for documents generated from text: hanging indent (`CLIO_DOCX_INDENT_CM`), bold labels (`CLIO_DOCX_LABELS`) and the generic `Label:: text` syntax; heading styles are resolved by Word's built-in style names with fallbacks.

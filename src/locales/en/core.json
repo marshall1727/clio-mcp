@@ -1,0 +1,23 @@
+{
+  "core.auth_already_running": "A sign-in is already running – use the same URL.",
+  "core.auth_started": "Clio sign-in started.",
+  "core.auth_browser_opened": "The browser should open with the Clio sign-in page.",
+  "core.auth_browser_not_opened": "The browser could not be opened automatically.",
+  "core.auth_open_manually": "If the page did not appear, open it manually: {url}",
+  "core.auth_next_step": "After approving access in the browser (callback on port {port}), call clio_auth_status to verify. The link is valid for 10 minutes.",
+  "core.auth_in_progress": "Sign-in in progress (state: {status}, started {started_at}). Finish the approval in the browser; URL: {url}",
+  "core.auth_last_attempt_failed": "The last sign-in attempt ended with: {status} – {error}. Run clio_authenticate again.",
+  "core.not_signed_in": "Not signed in. Region {region}, API {api_base}. Run clio_authenticate.",
+  "core.tokens_removed": "Tokens removed from this computer.",
+  "core.token_revoked": "Token also invalidated in Clio.",
+  "core.token_revoke_failed": "Invalidation in Clio failed (the token may already have been invalid).",
+  "core.schema_not_found": "Schema '{schema}' is not in the catalog. Available, for example: {list} …",
+  "core.endpoint_method_not_found": "No endpoint found with this method. Available:\n{list}",
+  "core.endpoint_not_found": "Endpoint {path} not found. Try query.",
+  "core.catalog_generated": "Catalog generated {generated_at} from {source}.",
+  "core.search_nothing_found": "Nothing found. Try other keywords (in English, e.g. 'activities', 'bills', 'documents').",
+  "core.search_detail_hint": "For details, call again with method + path.",
+  "core.validation_warnings": "\nWarnings:\n- {warnings}",
+  "core.validation_failed": "Request not sent – OpenAPI validation:\n- {errors}{warnings}\n(To send despite the errors, use skip_validation=true.)",
+  "core.api_request_preview": "PREVIEW (not sent). To execute, repeat with confirm=true.\n{method} {url}\nquery: {query}\nbody: {body}{warnings}"
+}

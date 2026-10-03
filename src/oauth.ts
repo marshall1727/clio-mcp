@@ -1,15 +1,16 @@
 /**
- * OAuth 2.0 Authorization Code flow s loopback redirectem (http://127.0.0.1:<port>/callback).
- * Dle https://docs.developers.clio.com/api-docs/clio-manage/authorization/
+ * OAuth 2.0 Authorization Code flow with a loopback redirect (http://127.0.0.1:<port>/callback).
+ * Per https://docs.developers.clio.com/api-docs/clio-manage/authorization/
  *
- * Neblokující návrh: `startAuthentication()` spustí loopback server, otevře prohlížeč a IHNED vrátí URL.
- * Výměna kódu za token proběhne na pozadí při callbacku; stav hlásí `getPendingAuth()`.
- * (Blokující varianta narážela na časový limit volání nástroje v Claude Desktop.)
+ * Non-blocking design: `startAuthentication()` starts the loopback server, opens the browser and returns the URL IMMEDIATELY.
+ * The code-for-token exchange happens in the background on the callback; `getPendingAuth()` reports the state.
+ * (The blocking variant ran into the tool-call timeout in Claude Desktop.)
  */
 import http from "node:http";
 import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { config, assertClientConfig } from "./config.js";
+import { t, locale } from "./i18n.js";
 import { saveTokens, loadTokens, clearTokens, type TokenSet } from "./store.js";
 
 const AUTH_TIMEOUT_MS = 10 * 60 * 1000;
@@ -35,7 +36,7 @@ export function getPendingAuth(): PendingAuth | null {
 function openBrowser(url: string): boolean {
   try {
     if (process.platform === "win32") {
-      // Start-Process otevře URL ve výchozím prohlížeči; v jednoduchých uvozovkách PS nic neinterpretuje
+      // Start-Process opens the URL in the default browser; PowerShell does not interpret anything inside single quotes
       spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", `Start-Process '${url.replace(/'/g, "''")}'`], {
         detached: true,
         stdio: "ignore",
@@ -55,7 +56,7 @@ function openBrowser(url: string): boolean {
 function listenOnFirstFreePort(ports: number[]): Promise<{ server: http.Server; port: number }> {
   return new Promise((resolve, reject) => {
     const tryNext = (i: number) => {
-      if (i >= ports.length) return reject(new Error(`Žádný z portů ${ports.join(", ")} není volný.`));
+      if (i >= ports.length) return reject(new Error(t("runtime.no_free_port", { ports: ports.join(", ") })));
       const server = http.createServer();
       server.once("error", () => tryNext(i + 1));
       server.listen(ports[i], "127.0.0.1", () => resolve({ server, port: ports[i] }));
@@ -78,7 +79,7 @@ async function postToken(params: Record<string, string>): Promise<TokenResponse>
     body: new URLSearchParams(params).toString(),
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(`Token endpoint ${res.status}: ${text.slice(0, 300)}`);
+  if (!res.ok) throw new Error(t("runtime.token_endpoint_error", { status: res.status, body: text.slice(0, 300) }));
   return JSON.parse(text) as TokenResponse;
 }
 
@@ -95,7 +96,7 @@ function toTokenSet(r: TokenResponse, previous?: TokenSet | null): TokenSet {
 }
 
 function page(title: string, body: string): string {
-  return `<!doctype html><html lang="cs"><meta charset="utf-8"><title>${title}</title><body style="font-family:system-ui;max-width:40em;margin:4em auto"><h2>${title}</h2><p>${body}</p></body></html>`;
+  return `<!doctype html><html lang="${locale}"><meta charset="utf-8"><title>${title}</title><body style="font-family:system-ui;max-width:40em;margin:4em auto"><h2>${title}</h2><p>${body}</p></body></html>`;
 }
 
 function closePending(status: PendingAuth["status"], error?: string) {
@@ -125,8 +126,8 @@ async function fetchIdentity(accessToken: string): Promise<{ id: number; name?: 
 }
 
 /**
- * Spustí autorizaci a ihned vrátí URL. Pokud už jedna běží, vrátí tu samou.
- * `force=true` zruší běžící pokus a začne znovu.
+ * Starts the authorization and returns the URL immediately. If one is already running, returns the same one.
+ * `force=true` cancels the running attempt and starts over.
  */
 export async function startAuthentication(force = false): Promise<{ url: string; port: number; browserOpened: boolean; reused: boolean }> {
   const { clientId, clientSecret } = assertClientConfig();
@@ -135,7 +136,7 @@ export async function startAuthentication(force = false): Promise<{ url: string;
     const opened = openBrowser(pending.url);
     return { url: pending.url, port: pending.port, browserOpened: opened, reused: true };
   }
-  if (pending && pending.server) closePending("expired", "Nahrazeno novým pokusem o přihlášení.");
+  if (pending && pending.server) closePending("expired", t("runtime.auth_replaced"));
 
   const { server, port } = await listenOnFirstFreePort(config.redirectPorts);
   const redirectUri = `http://127.0.0.1:${port}/callback`;
@@ -153,7 +154,7 @@ export async function startAuthentication(force = false): Promise<{ url: string;
   pending = p;
 
   p.timer = setTimeout(() => {
-    if (pending === p && p.status === "pending") closePending("expired", "Autorizace vypršela (10 min). Spusťte clio_authenticate znovu.");
+    if (pending === p && p.status === "pending") closePending("expired", t("runtime.auth_expired"));
   }, AUTH_TIMEOUT_MS);
 
   server.on("request", async (req, res) => {
@@ -166,12 +167,12 @@ export async function startAuthentication(force = false): Promise<{ url: string;
     const gotState = u.searchParams.get("state");
     const gotCode = u.searchParams.get("code");
     if (gotState !== state) {
-      res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" }).end(page("Chyba", "Neplatný parametr state. Spusťte přihlášení znovu z Claude."));
+      res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" }).end(page(t("runtime.page_error_title"), t("runtime.page_bad_state")));
       return;
     }
     if (err || !gotCode) {
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(page("Přístup odmítnut", "Autorizace nebyla udělena. Okno můžete zavřít."));
-      closePending("error", `Autorizace odmítnuta (${err ?? "bez kódu"}).`);
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(page(t("runtime.page_denied_title"), t("runtime.page_denied_body")));
+      closePending("error", t("runtime.auth_denied", { reason: err ?? t("runtime.auth_denied_no_code") }));
       return;
     }
     p.status = "exchanging";
@@ -188,23 +189,23 @@ export async function startAuthentication(force = false): Promise<{ url: string;
       saveTokens(tokens);
       p.user = tokens.user;
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(
-        page("Clio připojeno", `Přihlášení do Clio proběhlo${tokens.user?.name ? ` (${tokens.user.name})` : ""}. Toto okno můžete zavřít a vrátit se do Claude.`)
+        page(t("runtime.page_success_title"), t("runtime.page_success_body", { user: tokens.user?.name ? ` (${tokens.user.name})` : "" }))
       );
       closePending("done");
     } catch (e) {
-      res.writeHead(500, { "Content-Type": "text/html; charset=utf-8" }).end(page("Chyba při získání tokenu", (e as Error).message));
+      res.writeHead(500, { "Content-Type": "text/html; charset=utf-8" }).end(page(t("runtime.page_token_error_title"), (e as Error).message));
       closePending("error", (e as Error).message);
     }
   });
 
-  console.error(`[clio-mcp] Authorization URL: ${url}`);
+  console.error(t("runtime.console_auth_url", { url }));
   const browserOpened = openBrowser(url);
   return { url, port, browserOpened, reused: false };
 }
 
 export async function refreshTokens(current: TokenSet): Promise<TokenSet> {
   const { clientId, clientSecret } = assertClientConfig();
-  if (!current.refresh_token) throw new Error("Chybí refresh token. Spusťte clio_authenticate.");
+  if (!current.refresh_token) throw new Error(t("runtime.missing_refresh_token"));
   const tr = await postToken({
     client_id: clientId,
     client_secret: clientSecret,
@@ -216,34 +217,34 @@ export async function refreshTokens(current: TokenSet): Promise<TokenSet> {
   return next;
 }
 
-/** Vrátí platný access token; při blížící se expiraci (< 24 h) obnoví. */
+/** Returns a valid access token; refreshes it when expiry is near (< 24 h). */
 export async function getValidTokens(): Promise<TokenSet> {
-  const t = loadTokens();
-  if (!t) {
+  const tok = loadTokens();
+  if (!tok) {
     const p = getPendingAuth();
-    if (p?.status === "pending") throw new Error("Přihlášení do Clio čeká na potvrzení v prohlížeči. Dokončete ho a zkuste znovu, nebo zavolejte clio_auth_status.");
-    throw new Error("Nejste přihlášeni do Clio. Spusťte nástroj clio_authenticate.");
+    if (p?.status === "pending") throw new Error(t("runtime.auth_pending_in_browser"));
+    throw new Error(t("runtime.not_signed_in"));
   }
-  if (t.expires_at - Date.now() < 24 * 3600 * 1000) {
+  if (tok.expires_at - Date.now() < 24 * 3600 * 1000) {
     try {
-      return await refreshTokens(t);
+      return await refreshTokens(tok);
     } catch (e) {
-      if (t.expires_at > Date.now()) return t; // ještě platí, zkusíme s ním
+      if (tok.expires_at > Date.now()) return tok; // still valid, try with it
       throw e;
     }
   }
-  return t;
+  return tok;
 }
 
 export async function logout(revokeRemote: boolean): Promise<{ revoked: boolean }> {
-  const t = loadTokens();
+  const tok = loadTokens();
   let revoked = false;
-  if (t && revokeRemote) {
+  if (tok && revokeRemote) {
     try {
       const res = await fetch(config.deauthorizeUrl, {
         method: "POST",
-        headers: { Authorization: `Bearer ${t.access_token}`, "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ token: t.access_token }).toString(),
+        headers: { Authorization: `Bearer ${tok.access_token}`, "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ token: tok.access_token }).toString(),
       });
       revoked = res.ok;
     } catch {
@@ -251,6 +252,6 @@ export async function logout(revokeRemote: boolean): Promise<{ revoked: boolean 
     }
   }
   clearTokens();
-  if (pending) closePending("expired", "Odhlášeno.");
+  if (pending) closePending("expired", t("runtime.signed_out"));
   return { revoked };
 }

@@ -1,0 +1,14 @@
+{
+  "activities.summary_filter_required": "Provide at least matter_id, user_id or start_date.",
+  "activities.preview_new_time_entry": "New time entry",
+  "activities.preview_new_expense": "New expense",
+  "activities.no_changes": "No changes were specified.",
+  "activities.preview_update_activity": "Update of entry {id}",
+  "activities.timer_not_running": "No timer is running.",
+  "activities.timer_start_requires_matter": "To start a timer, provide matter_id.",
+  "activities.preview_timer_start": "Start timer",
+  "activities.preview_timer_stop": "Stop timer",
+  "activities.timer_stop_unsupported": "Stopping the timer requires DELETE /timer, which is blocked in this connector. Stop the timer in Clio (Stop button); then adjust the recorded time with clio_activity_update.",
+  "activities.preview_update_bill": "Update of bill {id}",
+  "activities.preview_update_line_item": "Update of line item {id}"
+}

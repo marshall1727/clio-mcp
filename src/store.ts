@@ -1,14 +1,15 @@
 /**
- * Úložiště tokenů.
- *  - Windows: DPAPI (CurrentUser) přes PowerShell – blob lze rozšifrovat jen pod stejným
- *    Windows účtem na stejném PC. Bez nativních modulů.
- *  - Jinde (vývoj/test): AES-256-GCM s klíčem v souboru s právy 0600 (označeno jako fallback).
+ * Token storage.
+ *  - Windows: DPAPI (CurrentUser) via PowerShell – the blob can only be decrypted under the same
+ *    Windows account on the same PC. No native modules.
+ *  - Elsewhere (development/test): AES-256-GCM with the key in a file with 0600 permissions (marked as fallback).
  */
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { config } from "./config.js";
+import { t } from "./i18n.js";
 
 export interface TokenSet {
   access_token: string;
@@ -32,7 +33,7 @@ function psRun(script: string, input: string): string {
     { input, encoding: "utf8", windowsHide: true, timeout: 20000 }
   );
   if (res.error) throw res.error;
-  if (res.status !== 0) throw new Error(`PowerShell DPAPI selhalo: ${res.stderr?.trim() || res.status}`);
+  if (res.status !== 0) throw new Error(t("runtime.dpapi_failed", { detail: res.stderr?.trim() || res.status }));
   return res.stdout.trim();
 }
 
@@ -98,16 +99,16 @@ export function loadTokens(): TokenSet | null {
     return cache;
   } catch (e) {
     cache = null;
-    throw new Error(`Nelze načíst uložené tokeny (${(e as Error).message}). Spusťte znovu clio_authenticate.`);
+    throw new Error(t("runtime.tokens_load_failed", { detail: (e as Error).message }));
   }
 }
 
-export function saveTokens(t: TokenSet): void {
+export function saveTokens(tokens: TokenSet): void {
   ensureDir();
-  const json = JSON.stringify(t);
+  const json = JSON.stringify(tokens);
   const blob = isWin ? dpapiProtect(json) : aesEncrypt(json);
   fs.writeFileSync(config.tokenFile, blob, { mode: 0o600 });
-  cache = t;
+  cache = tokens;
 }
 
 export function clearTokens(): void {

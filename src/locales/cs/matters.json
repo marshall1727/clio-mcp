@@ -1,0 +1,18 @@
+{
+  "matters.preview_new_matter": "Nový spis",
+  "matters.no_changes": "Nebyla zadána žádná změna.",
+  "matters.preview_update_matter": "Úprava spisu {id}",
+  "matters.company_requires_name": "Pro Company zadejte name.",
+  "matters.person_requires_names": "Pro Person zadejte first_name a last_name.",
+  "matters.preview_new_contact": "Nový kontakt",
+  "matters.preview_update_contact": "Úprava kontaktu {id}",
+  "matters.preview_new_task": "Nový úkol",
+  "matters.preview_update_task": "Úprava úkolu {id}",
+  "matters.calendar_not_determined": "Nelze určit kalendář – zadejte calendar_id (viz clio_calendars_list).",
+  "matters.preview_new_calendar_entry": "Nová událost",
+  "matters.preview_update_calendar_entry": "Úprava události {id}",
+  "matters.matter_or_contact_required": "Zadejte matter_id nebo contact_id.",
+  "matters.preview_new_note": "Nová poznámka",
+  "matters.matter_contact_or_query_required": "Zadejte matter_id, contact_id nebo query.",
+  "matters.preview_communication_log": "Záznam komunikace"
+}

@@ -1,8 +1,9 @@
 /**
- * HTTP klient pro Clio API v4: bearer token, automatický refresh při 401,
- * respektování X-RateLimit-* a Retry-After, srozumitelné chyby.
+ * HTTP client for Clio API v4: bearer token, automatic refresh on 401,
+ * respects X-RateLimit-* and Retry-After, readable errors.
  */
 import { config } from "./config.js";
+import { t } from "./i18n.js";
 import { getValidTokens, refreshTokens } from "./oauth.js";
 import { loadTokens, saveTokens } from "./store.js";
 
@@ -29,7 +30,7 @@ async function waitForRateLimit(): Promise<void> {
   }
 }
 
-/** Jednoduchá fronta: max. 2 souběžné požadavky na Clio, aby hromadné operace nepřekročily 50/min. */
+/** Simple queue: at most 2 concurrent requests to Clio so that bulk operations stay under 50/min. */
 const MAX_CONCURRENT = 2;
 let active = 0;
 const waiting: Array<() => void> = [];
@@ -64,26 +65,26 @@ function explain(status: number, body: any): string {
   const msg = body?.error?.message ?? JSON.stringify(body)?.slice(0, 300);
   switch (status) {
     case 400:
-      return `400 Bad Request – zkontrolujte parametr fields nebo tělo požadavku. ${msg}`;
+      return t("runtime.http_400", { msg });
     case 401:
-      return `401 Unauthorized – token neplatí; spusťte clio_authenticate. ${msg}`;
+      return t("runtime.http_401", { msg });
     case 403:
-      return `403 Forbidden – aplikace nemá scope, nebo role uživatele v Clio tuto akci nedovoluje (${type ?? ""}). ${msg}`;
+      return t("runtime.http_403", { type: type ?? "", msg });
     case 404:
-      return `404 Not Found – záznam neexistuje nebo k němu uživatel nemá přístup. ${msg}`;
+      return t("runtime.http_404", { msg });
     case 422:
-      return `422 – neplatná data (${type ?? ""}). ${msg}`;
+      return t("runtime.http_422", { type: type ?? "", msg });
     case 429:
-      return `429 Too Many Requests – překročen rate limit (50/min ve špičce). ${msg}`;
+      return t("runtime.http_429", { msg });
     default:
-      return `${status} – ${msg}`;
+      return t("runtime.http_other", { status, msg });
   }
 }
 
 /**
- * Obecné volání API. `path` je relativní k /api/v4 (např. "/users/who_am_i") nebo absolutní URL
- * (např. meta.paging.next). `query` se přidá do URL; `body` se odešle jako JSON {"data": ...}
- * pokud není už obalené.
+ * Generic API call. `path` is relative to /api/v4 (e.g. "/users/who_am_i") or an absolute URL
+ * (e.g. meta.paging.next). `query` is appended to the URL; `body` is sent as JSON {"data": ...}
+ * unless it is already wrapped.
  */
 export async function apiRequest<T = unknown>(
   method: Method,
@@ -91,7 +92,7 @@ export async function apiRequest<T = unknown>(
   opts: { query?: Record<string, string | number | boolean | undefined>; body?: unknown; raw?: boolean; headers?: Record<string, string> } = {}
 ): Promise<ApiResult<T>> {
   // Hard guard: this connector never deletes anything in Clio (see README – Safety model).
-  if (String(method).toUpperCase() === "DELETE") throw new Error("DELETE requests are not permitted by this connector.");
+  if (String(method).toUpperCase() === "DELETE") throw new Error(t("runtime.delete_not_permitted"));
   let tokens = await getValidTokens();
   const url = new URL(path.startsWith("http") ? path : `${config.apiBase}${path.startsWith("/") ? "" : "/"}${path}`);
   for (const [k, v] of Object.entries(opts.query ?? {})) {
@@ -163,7 +164,7 @@ export interface ListResult<T> {
   rate_limit?: ApiResult["rateLimit"];
 }
 
-/** Jedna stránka seznamu; vrací i page_token pro pokračování (meta.paging.next). */
+/** One page of a list; also returns the page_token for continuing (meta.paging.next). */
 export async function apiList<T = Record<string, unknown>>(
   path: string,
   query: Record<string, string | number | boolean | undefined>,
@@ -183,7 +184,7 @@ export async function apiList<T = Record<string, unknown>>(
   return { data: r.data?.data ?? [], records: r.data?.meta?.records, next_page_token: token, has_more: Boolean(next), rate_limit: r.rateLimit };
 }
 
-/** Projde všechny stránky (cursor, order=id(asc)) až do maxRecords. */
+/** Walks all pages (cursor, order=id(asc)) up to maxRecords. */
 export async function apiListAll<T = Record<string, unknown>>(
   path: string,
   query: Record<string, string | number | boolean | undefined>,
@@ -202,8 +203,8 @@ export async function apiListAll<T = Record<string, unknown>>(
   }
 }
 
-/** Uloží identitu uživatele k tokenům (pro audit). */
+/** Stores the user's identity alongside the tokens (for the audit log). */
 export function rememberUser(user: { id: number; name?: string; email?: string }) {
-  const t = loadTokens();
-  if (t) saveTokens({ ...t, user });
+  const tok = loadTokens();
+  if (tok) saveTokens({ ...tok, user });
 }

@@ -1,7 +1,8 @@
 /**
- * Katalog Clio API v4 vygenerovaný z OpenAPI (tools/gen-catalog.mjs) – vyhledávání endpointů a validace požadavků.
+ * Clio API v4 catalog generated from OpenAPI (tools/gen-catalog.mjs) – endpoint lookup and request validation.
  */
 import catalogJson from "./generated/catalog.json" with { type: "json" };
+import { t } from "./i18n.js";
 
 export interface Field {
   name: string;
@@ -20,7 +21,7 @@ export interface Param {
 export interface Op {
   id: string;
   method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
-  path: string; // např. /matters/{id}
+  path: string; // e.g. /matters/{id}
   tag?: string;
   summary?: string;
   params?: Param[];
@@ -37,7 +38,7 @@ interface Catalog {
 
 export const catalog = catalogJson as unknown as Catalog;
 
-/** Normalizuje cestu: odstraní base URL, query, příponu .json, koncové lomítko. */
+/** Normalizes a path: strips the base URL, query string, .json suffix and trailing slash. */
 export function normalizePath(input: string): string {
   let p = input.trim();
   try {
@@ -46,7 +47,7 @@ export function normalizePath(input: string): string {
       p = u.pathname;
     }
   } catch {
-    /* ponecháme */
+    /* keep as is */
   }
   p = p.split("?")[0];
   p = p.replace(/^\/api\/v4/, "");
@@ -63,11 +64,11 @@ function templateToRegex(tpl: string): RegExp {
 
 const compiled = catalog.ops.map((op) => ({ op, re: templateToRegex(op.path) }));
 
-/** Najde operaci podle metody a konkrétní cesty (např. GET /matters/123). */
+/** Finds the operation for a method and a concrete path (e.g. GET /matters/123). */
 export function matchOp(method: string, path: string): { op: Op; pathParams: string[] } | undefined {
   const p = normalizePath(path);
   const m = method.toUpperCase();
-  // přednost mají cesty bez parametrů (přesná shoda)
+  // paths without parameters (exact match) take precedence
   const exact = compiled.find((c) => c.op.method === m && c.op.path === p);
   if (exact) return { op: exact.op, pathParams: [] };
   for (const c of compiled) {
@@ -78,7 +79,7 @@ export function matchOp(method: string, path: string): { op: Op; pathParams: str
   return undefined;
 }
 
-/** Vrátí všechny metody dostupné pro danou cestu. */
+/** Returns all methods available for the given path. */
 export function methodsForPath(path: string): string[] {
   const p = normalizePath(path);
   const out = new Set<string>();
@@ -86,7 +87,7 @@ export function methodsForPath(path: string): string[] {
   return [...out];
 }
 
-/** Fulltext nad id, cestou, tagem a summary; vrací seřazené podle skóre. */
+/** Full-text search over id, path, tag and summary; returns results sorted by score. */
 export function searchOps(query: string, limit = 25): Op[] {
   const terms = query
     .toLowerCase()
@@ -97,10 +98,10 @@ export function searchOps(query: string, limit = 25): Op[] {
     .map((op) => {
       const hay = `${op.id} ${op.path} ${op.tag ?? ""} ${op.summary ?? ""}`.toLowerCase();
       let score = 0;
-      for (const t of terms) {
-        if (op.path.toLowerCase().includes(t)) score += 3;
-        if ((op.tag ?? "").toLowerCase().includes(t)) score += 2;
-        if (hay.includes(t)) score += 1;
+      for (const term of terms) {
+        if (op.path.toLowerCase().includes(term)) score += 3;
+        if ((op.tag ?? "").toLowerCase().includes(term)) score += 2;
+        if (hay.includes(term)) score += 1;
       }
       return { op, score };
     })
@@ -113,13 +114,13 @@ export function schemaFields(name: string): Field[] | undefined {
   return catalog.schemas[name];
 }
 
-/** Zkontroluje zápis parametru `fields` proti schématu odpovědi (1 úroveň vnoření). */
+/** Checks the `fields` parameter against the response schema (1 level of nesting). */
 export function validateFieldsParam(op: Op, fields: string): string[] {
   const warnings: string[] = [];
   if (!op.response) return warnings;
   const top = schemaFields(op.response.schema);
   if (!top) return warnings;
-  // rozparsuje "a,b{c,d},e"
+  // parses "a,b{c,d},e"
   const items: { name: string; nested?: string[] }[] = [];
   let i = 0;
   while (i < fields.length) {
@@ -142,14 +143,14 @@ export function validateFieldsParam(op: Op, fields: string): string[] {
   for (const it of items) {
     const f = top.find((x) => x.name === it.name);
     if (!f) {
-      warnings.push(`Pole '${it.name}' není ve schématu ${op.response.schema} (API vrátí 400).`);
+      warnings.push(t("runtime.field_not_in_schema", { field: it.name, schema: op.response.schema }));
       continue;
     }
     if (it.nested) {
       const nestedSchema = schemaFields(f.type.replace(/^array<(.+)>$/, "$1")) ?? f.fields;
       if (nestedSchema) {
         for (const n of it.nested) {
-          if (!nestedSchema.find((x) => x.name === n)) warnings.push(`Vnořené pole '${it.name}{${n}}' není ve schématu.`);
+          if (!nestedSchema.find((x) => x.name === n)) warnings.push(t("runtime.nested_field_not_in_schema", { field: `${it.name}{${n}}` }));
         }
       }
     }
@@ -169,40 +170,40 @@ export function validateRequest(method: string, path: string, query?: Record<str
   const m = matchOp(method, path);
   if (!m) {
     const others = methodsForPath(path);
-    if (others.length) errors.push(`Endpoint ${normalizePath(path)} nepodporuje metodu ${method.toUpperCase()}; dostupné: ${others.join(", ")}.`);
-    else errors.push(`Endpoint ${normalizePath(path)} v Clio API v4 neexistuje. Použijte clio_describe_api pro vyhledání správné cesty.`);
+    if (others.length) errors.push(t("runtime.endpoint_method_unsupported", { path: normalizePath(path), method: method.toUpperCase(), methods: others.join(", ") }));
+    else errors.push(t("runtime.endpoint_not_found", { path: normalizePath(path) }));
     return { errors, warnings };
   }
   const op = m.op;
   const known = new Set((op.params ?? []).map((p) => p.name));
   for (const k of Object.keys(query ?? {})) {
-    if (!known.has(k) && !known.has(k + "[]")) warnings.push(`Query parametr '${k}' není v dokumentaci endpointu ${op.id}.`);
+    if (!known.has(k) && !known.has(k + "[]")) warnings.push(t("runtime.query_param_undocumented", { param: k, op: op.id }));
   }
   for (const p of op.params ?? []) {
-    if (p.required && p.in === "query" && !(query && p.name in query)) errors.push(`Chybí povinný query parametr '${p.name}'.`);
+    if (p.required && p.in === "query" && !(query && p.name in query)) errors.push(t("runtime.query_param_required", { param: p.name }));
   }
   if (typeof query?.fields === "string") warnings.push(...validateFieldsParam(op, query.fields));
   if (body && op.body) {
     const knownBody = new Set(op.body.map((f) => f.name));
-    for (const k of Object.keys(body)) if (!knownBody.has(k)) warnings.push(`Pole těla '${k}' není v dokumentaci ${op.id}.`);
-    for (const f of op.body) if (f.required && !(f.name in body)) errors.push(`Chybí povinné pole těla '${f.name}'.`);
+    for (const k of Object.keys(body)) if (!knownBody.has(k)) warnings.push(t("runtime.body_field_undocumented", { field: k, op: op.id }));
+    for (const f of op.body) if (f.required && !(f.name in body)) errors.push(t("runtime.body_field_required", { field: f.name }));
   }
-  if ((op.method === "POST" || op.method === "PATCH") && op.body && !body) warnings.push("Požadavek nemá tělo; endpoint tělo očekává.");
+  if ((op.method === "POST" || op.method === "PATCH") && op.body && !body) warnings.push(t("runtime.body_missing"));
   return { op, errors, warnings };
 }
 
-/** Textový popis operace pro Claude. */
+/** Textual description of an operation for Claude. */
 export function describeOp(op: Op, opts: { fields?: boolean } = { fields: true }): string {
   const lines: string[] = [];
   lines.push(`${op.method} /api/v4${op.path}  [${op.id}]${op.tag ? `  (${op.tag})` : ""}`);
   if (op.summary) lines.push(`  ${op.summary}`);
   const q = (op.params ?? []).filter((p) => p.in === "query");
   if (q.length) {
-    lines.push("  Query parametry:");
+    lines.push(`  ${t("runtime.describe_query_params")}`);
     for (const p of q) lines.push(`    - ${p.name}${p.required ? "*" : ""} (${p.type})${p.desc ? `: ${p.desc}` : ""}`);
   }
   if (op.body?.length) {
-    lines.push("  Tělo (data):");
+    lines.push(`  ${t("runtime.describe_body")}`);
     for (const f of op.body) {
       lines.push(`    - ${f.name}${f.required ? "*" : ""} (${f.type})${f.desc ? `: ${f.desc}` : ""}`);
       if (f.fields) for (const sub of f.fields.slice(0, 12)) lines.push(`        · ${sub.name}${sub.required ? "*" : ""} (${sub.type})${sub.desc ? `: ${sub.desc.slice(0, 80)}` : ""}`);
@@ -210,7 +211,7 @@ export function describeOp(op: Op, opts: { fields?: boolean } = { fields: true }
   }
   if (op.response && opts.fields) {
     const fs = schemaFields(op.response.schema) ?? [];
-    lines.push(`  Odpověď: ${op.response.list ? "seznam " : ""}${op.response.schema}; pole pro parametr fields:`);
+    lines.push(`  ${t("runtime.describe_response", { list: op.response.list ? t("runtime.describe_response_list") : "", schema: op.response.schema })}`);
     lines.push("    " + fs.map((f) => (f.type.match(/^[A-Z]/) || f.type.startsWith("array<") ? `${f.name}{…}` : f.name)).join(", "));
   }
   return lines.join("\n");

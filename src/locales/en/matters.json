@@ -1,0 +1,18 @@
+{
+  "matters.preview_new_matter": "New matter",
+  "matters.no_changes": "No change was specified.",
+  "matters.preview_update_matter": "Update of matter {id}",
+  "matters.company_requires_name": "For Company, provide name.",
+  "matters.person_requires_names": "For Person, provide first_name and last_name.",
+  "matters.preview_new_contact": "New contact",
+  "matters.preview_update_contact": "Update of contact {id}",
+  "matters.preview_new_task": "New task",
+  "matters.preview_update_task": "Update of task {id}",
+  "matters.calendar_not_determined": "Cannot determine the calendar – provide calendar_id (see clio_calendars_list).",
+  "matters.preview_new_calendar_entry": "New calendar entry",
+  "matters.preview_update_calendar_entry": "Update of calendar entry {id}",
+  "matters.matter_or_contact_required": "Provide matter_id or contact_id.",
+  "matters.preview_new_note": "New note",
+  "matters.matter_contact_or_query_required": "Provide matter_id, contact_id or query.",
+  "matters.preview_communication_log": "Communication log entry"
+}

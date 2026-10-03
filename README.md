@@ -66,6 +66,7 @@ Clio's own guide: https://docs.developers.clio.com/api-docs/clio-manage/applicat
 | Setting | What to enter |
 | --- | --- |
 | **Clio region** | `us`, `eu`, `ca` or `au` – the region your Clio account lives in (look at the address bar when you use Clio: `app.clio.com` = us, `eu.app.clio.com` = eu, …). |
+| Language of messages | Optional, default `en`. Language of previews, errors and notes (`en` or `cs`). Tool descriptions are always English; Claude answers in whatever language you write. |
 | **Clio App Key (Client ID)** | The App Key from step 1. |
 | **Clio App Secret (Client Secret)** | The App Secret from step 1. Claude Desktop stores it in the Windows Credential Manager, not in a file. |
 | Work folder for documents | Optional. Folder on your PC where documents are downloaded for editing (default `Documents\Clio MCP`). If you use Cowork, connect the same folder there. |
@@ -130,6 +131,10 @@ Header, footer, page numbers and fonts come from the template, so the result loo
 ## Confidentiality and professional rules
 
 Everything Claude reads from Clio is processed by the Claude model under the terms of **your** Anthropic plan (consumer plans and commercial/Team/Enterprise plans differ in data-retention and training terms). Before using the connector on client files, check your plan's terms and any guidance from your bar or law society on the use of generative AI with confidential client information (for example ABA Formal Opinion 512 in the US, or the guidance of your national bar in Europe). This README is not legal advice.
+
+## Languages
+
+The server's messages (previews, errors, notes, the instructions Claude receives) are available in **English** (default) and **Czech**; choose with the *Language of messages* setting. Adding a language means translating the six small JSON files in `src/locales/en/` into `src/locales/<code>/` and registering the code in `src/i18n.ts` – pull requests welcome. Tool names, descriptions and output field names are English only, since they are read by the model.
 
 ## Known limitations
 

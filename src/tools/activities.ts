@@ -1,7 +1,8 @@
-/** Evidence času a výdajů (Activities) + billing podklady. */
+/** Time and expense tracking (Activities) + billing data. */
 import { z } from "zod";
 import { apiRequest, apiList, apiListAll } from "../client.js";
 import { loadTokens } from "../store.js";
+import { t } from "../i18n.js";
 import { text, json, wrap, preview, confirmSchema, compact, hoursToSeconds, dateSchema, type Registrar } from "./common.js";
 
 const ACT_FIELDS =
@@ -13,20 +14,20 @@ export const registerActivities: Registrar = (server) => {
   server.registerTool(
     "clio_time_entries_list",
     {
-      title: "Výpis času a výdajů",
+      title: "List time entries and expenses",
       description:
-        "Vypíše časové záznamy (TimeEntry) a případně výdaje podle spisu, uživatele, období a stavu fakturace (unbilled/billed/non_billable/draft). Vrací i souhrn hodin a částek za výpis. " +
-        "Bez matter_id a user_id vrací záznamy celé kanceláře – u velkých období použijte limit a page_token.",
+        "Lists time entries (TimeEntry) and optionally expenses by matter, user, period and billing status (unbilled/billed/non_billable/draft). Also returns a summary of hours and amounts for the listed page. " +
+        "Without matter_id and user_id it returns entries for the whole firm – for large periods use limit and page_token.",
       inputSchema: {
         matter_id: z.number().int().optional(),
-        user_id: z.number().int().optional().describe("ID uživatele; 'me' řeší clio_who_am_i"),
-        start_date: dateSchema.optional().describe("Od (včetně), YYYY-MM-DD"),
-        end_date: dateSchema.optional().describe("Do (včetně), YYYY-MM-DD"),
-        type: z.enum(["TimeEntry", "ExpenseEntry", "HardCostEntry", "SoftCostEntry"]).optional().describe("Výchozí TimeEntry; pro vše nezadávejte"),
+        user_id: z.number().int().optional().describe("User ID; use clio_who_am_i to resolve 'me'"),
+        start_date: dateSchema.optional().describe("From (inclusive), YYYY-MM-DD"),
+        end_date: dateSchema.optional().describe("To (inclusive), YYYY-MM-DD"),
+        type: z.enum(["TimeEntry", "ExpenseEntry", "HardCostEntry", "SoftCostEntry"]).optional().describe("Default TimeEntry; leave empty for all types"),
         status: z.enum(["billed", "draft", "unbilled", "non_billable", "billable", "written_off"]).optional(),
-        query: z.string().optional().describe("Text v poznámce"),
-        all_types: z.boolean().optional().describe("true = nevynucovat type TimeEntry"),
-        limit: z.number().int().min(1).max(200).optional().describe("Výchozí 100"),
+        query: z.string().optional().describe("Text in the note"),
+        all_types: z.boolean().optional().describe("true = do not force type TimeEntry"),
+        limit: z.number().int().min(1).max(200).optional().describe("Default 100"),
         page_token: z.string().optional(),
       },
     },
@@ -43,8 +44,8 @@ export const registerActivities: Registrar = (server) => {
   server.registerTool(
     "clio_time_summary",
     {
-      title: "Souhrn času za spis/období",
-      description: "Sečte hodiny a částky za všechny časové záznamy podle spisu, uživatele a období (prochází všechny stránky, max. 2000 záznamů). Členění podle uživatele a stavu fakturace.",
+      title: "Time summary per matter/period",
+      description: "Sums hours and amounts across all time entries by matter, user and period (walks all pages, max. 2000 entries). Broken down by user and billing status.",
       inputSchema: {
         matter_id: z.number().int().optional(),
         user_id: z.number().int().optional(),
@@ -54,7 +55,7 @@ export const registerActivities: Registrar = (server) => {
       },
     },
     wrap("clio_time_summary", async (a: { matter_id?: number; user_id?: number; start_date?: string; end_date?: string; status?: string }) => {
-      if (!a.matter_id && !a.user_id && !a.start_date) return text("Zadejte alespoň matter_id, user_id nebo start_date.");
+      if (!a.matter_id && !a.user_id && !a.start_date) return text(t("activities.summary_filter_required"));
       const r = await apiListAll<Act>("/activities", { ...compact(a), type: "TimeEntry", fields: "id,quantity_in_hours,total,non_billable,billed,user{name},matter{display_number}" }, 2000);
       const by = <K extends string>(key: (x: Act) => K) => {
         const m: Record<string, { hours: number; amount: number; count: number }> = {};
@@ -85,12 +86,12 @@ export const registerActivities: Registrar = (server) => {
   server.registerTool(
     "clio_activity_descriptions_list",
     {
-      title: "Číselník činností a sazeb",
-      description: "Vypíše ActivityDescriptions (typy činností/výdajů s výchozí sazbou) – potřebné pro správné vyplnění activity_description_id při zápisu času.",
+      title: "Activity descriptions and rates",
+      description: "Lists ActivityDescriptions (activity/expense types with their default rate) – needed to fill in activity_description_id correctly when recording time.",
       inputSchema: {
-        flat_rate: z.boolean().optional().describe("true = jen paušální činnosti"),
-        matter_id: z.number().int().optional().describe("Vrátit sazby platné pro daný spis"),
-        query: z.string().optional().describe("Filtr podle názvu (na straně konektoru)"),
+        flat_rate: z.boolean().optional().describe("true = flat-rate activities only"),
+        matter_id: z.number().int().optional().describe("Return the rates applicable to the given matter"),
+        query: z.string().optional().describe("Filter by name (applied on the connector side)"),
       },
     },
     wrap("clio_activity_descriptions_list", async ({ flat_rate, matter_id, query }: { flat_rate?: boolean; matter_id?: number; query?: string }) => {
@@ -105,18 +106,18 @@ export const registerActivities: Registrar = (server) => {
   server.registerTool(
     "clio_time_entry_create",
     {
-      title: "Zapsat čas",
+      title: "Record time",
       description:
-        "Zapíše časový záznam (TimeEntry) ke spisu: datum, hodiny (desetinně, např. 0.5), poznámka, volitelně činnost (activity_description_id), sazba (price/hod), uživatel (výchozí přihlášený), ne/fakturovatelné. " +
-        "Zápis – vyžaduje confirm=true; bez něj vrátí náhled.",
+        "Records a time entry (TimeEntry) on a matter: date, hours (decimal, e.g. 0.5), note, optionally activity description (activity_description_id), rate (price per hour), user (default: signed-in user), billable/non-billable. " +
+        "Write operation – requires confirm=true; without it returns a preview.",
       inputSchema: {
         matter_id: z.number().int(),
-        date: dateSchema.describe("Datum úkonu YYYY-MM-DD"),
-        hours: z.number().positive().describe("Počet hodin, desetinně (0.25 = 15 min)"),
-        note: z.string().describe("Popis úkonu (objeví se na faktuře)"),
+        date: dateSchema.describe("Date of the work YYYY-MM-DD"),
+        hours: z.number().positive().describe("Number of hours, decimal (0.25 = 15 min)"),
+        note: z.string().describe("Description of the work (appears on the bill)"),
         activity_description_id: z.number().int().optional(),
-        price: z.number().optional().describe("Hodinová sazba; výchozí podle sazby uživatele/spisu"),
-        user_id: z.number().int().optional().describe("Výchozí přihlášený uživatel"),
+        price: z.number().optional().describe("Hourly rate; defaults to the user's/matter's rate"),
+        user_id: z.number().int().optional().describe("Default: signed-in user"),
         non_billable: z.boolean().optional(),
         no_charge: z.boolean().optional(),
         reference: z.string().optional(),
@@ -138,7 +139,7 @@ export const registerActivities: Registrar = (server) => {
         no_charge: a.no_charge,
         reference: a.reference,
       });
-      if (!a.confirm) return preview("Nový časový záznam", { ...body, hours: a.hours });
+      if (!a.confirm) return preview(t("activities.preview_new_time_entry"), { ...body, hours: a.hours });
       const r = await apiRequest<{ data: unknown }>("POST", "/activities", { query: { fields: ACT_FIELDS }, body });
       return json(r.data.data);
     })
@@ -147,13 +148,13 @@ export const registerActivities: Registrar = (server) => {
   server.registerTool(
     "clio_expense_create",
     {
-      title: "Zapsat výdaj",
-      description: "Zapíše výdaj (ExpenseEntry) ke spisu: datum, částka (price × quantity), popis, volitelně kategorie výdaje. Zápis – vyžaduje confirm=true.",
+      title: "Record expense",
+      description: "Records an expense (ExpenseEntry) on a matter: date, amount (price × quantity), description, optionally expense category. Write operation – requires confirm=true.",
       inputSchema: {
         matter_id: z.number().int(),
         date: dateSchema,
-        price: z.number().describe("Jednotková cena"),
-        quantity: z.number().positive().optional().describe("Množství, výchozí 1"),
+        price: z.number().describe("Unit price"),
+        quantity: z.number().positive().optional().describe("Quantity, default 1"),
         note: z.string(),
         expense_category_id: z.number().int().optional(),
         non_billable: z.boolean().optional(),
@@ -162,7 +163,7 @@ export const registerActivities: Registrar = (server) => {
     },
     wrap("clio_expense_create", async (a: { matter_id: number; date: string; price: number; quantity?: number; note: string; expense_category_id?: number; non_billable?: boolean; confirm?: boolean }) => {
       const body = compact({ type: "ExpenseEntry", date: a.date, price: a.price, quantity: a.quantity ?? 1, note: a.note, matter: { id: a.matter_id }, expense_category: a.expense_category_id ? { id: a.expense_category_id } : undefined, non_billable: a.non_billable });
-      if (!a.confirm) return preview("Nový výdaj", body);
+      if (!a.confirm) return preview(t("activities.preview_new_expense"), body);
       const r = await apiRequest<{ data: unknown }>("POST", "/activities", { query: { fields: ACT_FIELDS }, body });
       return json(r.data.data);
     })
@@ -171,17 +172,17 @@ export const registerActivities: Registrar = (server) => {
   server.registerTool(
     "clio_activity_update",
     {
-      title: "Upravit časový záznam / výdaj",
-      description: "Upraví existující záznam (dokud není vyfakturován): datum, hodiny, poznámku, sazbu, činnost, ne/fakturovatelnost. Zápis – vyžaduje confirm=true.",
+      title: "Update time entry / expense",
+      description: "Updates an existing entry (as long as it has not been billed): date, hours, note, rate, activity description, billable/non-billable. Write operation – requires confirm=true.",
       inputSchema: {
         activity_id: z.number().int(),
         date: dateSchema.optional(),
-        hours: z.number().positive().optional().describe("Nové hodiny (jen TimeEntry)"),
-        quantity: z.number().optional().describe("Nové množství (výdaje)"),
+        hours: z.number().positive().optional().describe("New hours (TimeEntry only)"),
+        quantity: z.number().optional().describe("New quantity (expenses)"),
         note: z.string().optional(),
         price: z.number().optional(),
         activity_description_id: z.number().int().optional(),
-        matter_id: z.number().int().optional().describe("Přesun na jiný spis"),
+        matter_id: z.number().int().optional().describe("Move to another matter"),
         non_billable: z.boolean().optional(),
         no_charge: z.boolean().optional(),
         confirm: confirmSchema,
@@ -198,10 +199,10 @@ export const registerActivities: Registrar = (server) => {
         non_billable: a.non_billable,
         no_charge: a.no_charge,
       });
-      if (!Object.keys(body).length) return text("Nebyla zadána žádná změna.");
+      if (!Object.keys(body).length) return text(t("activities.no_changes"));
       if (!a.confirm) {
         const cur = await apiRequest<{ data: unknown }>("GET", `/activities/${a.activity_id}`, { query: { fields: ACT_FIELDS } });
-        return preview(`Úprava záznamu ${a.activity_id}`, { current: cur.data.data, changes: body });
+        return preview(t("activities.preview_update_activity", { id: a.activity_id }), { current: cur.data.data, changes: body });
       }
       const r = await apiRequest<{ data: unknown }>("PATCH", `/activities/${a.activity_id}`, { query: { fields: ACT_FIELDS }, body });
       return json(r.data.data);
@@ -211,12 +212,12 @@ export const registerActivities: Registrar = (server) => {
   server.registerTool(
     "clio_timer",
     {
-      title: "Časovač",
-      description: "Zobrazí běžící časovač přihlášeného uživatele, nebo spustí nový časovač na spisu (action=start; vytvoří rozpracovaný TimeEntry). Zastavení: action=stop. Spuštění/zastavení je zápis – confirm=true.",
+      title: "Timer",
+      description: "Shows the signed-in user's running timer, or starts a new timer on a matter (action=start; creates an in-progress TimeEntry). Stopping: action=stop. Starting/stopping is a write operation – confirm=true.",
       inputSchema: {
-        action: z.enum(["status", "start", "stop"]).optional().describe("Výchozí status"),
-        matter_id: z.number().int().optional().describe("Pro start"),
-        note: z.string().optional().describe("Pro start"),
+        action: z.enum(["status", "start", "stop"]).optional().describe("Default status"),
+        matter_id: z.number().int().optional().describe("For start"),
+        note: z.string().optional().describe("For start"),
         activity_description_id: z.number().int().optional(),
         confirm: confirmSchema,
       },
@@ -228,29 +229,30 @@ export const registerActivities: Registrar = (server) => {
           const r = await apiRequest<{ data: unknown }>("GET", "/timer", { query: { fields: "id,start_time,elapsed_time,activity{id,note,matter{id,display_number}}" } });
           return json(r.data.data);
         } catch (e) {
-          if ((e as { status?: number }).status === 404) return text("Žádný časovač neběží.");
+          if ((e as { status?: number }).status === 404) return text(t("activities.timer_not_running"));
           throw e;
         }
       }
       if (act === "start") {
-        if (!matter_id) return text("Pro start zadejte matter_id.");
+        if (!matter_id) return text(t("activities.timer_start_requires_matter"));
         const activity = compact({ type: "TimeEntry", date: new Date().toISOString().slice(0, 10), matter: { id: matter_id }, note, activity_description: activity_description_id ? { id: activity_description_id } : undefined, quantity: 0 });
-        if (!confirm) return preview("Spustit časovač", { activity });
+        if (!confirm) return preview(t("activities.preview_timer_start"), { activity });
         const created = await apiRequest<{ data: { id: number } }>("POST", "/activities", { query: { fields: "id" }, body: { ...activity, start_timer: true } });
         return json({ started: true, activity_id: created.data.data.id });
       }
-      if (!confirm) return preview("Zastavit časovač", {});
-      return text("Zastavení časovače vyžaduje DELETE /timer, který je v tomto konektoru blokován. Zastavte časovač v Clio (tlačítko Stop); zapsaný čas pak upravte nástrojem clio_activity_update.");
+      if (!confirm) return preview(t("activities.preview_timer_stop"), {});
+      // Stopping requires DELETE /timer, which this connector never sends; the user must stop the timer in Clio.
+      return text(t("activities.timer_stop_unsupported"));
     })
   );
 
-  // ---------------- Billing (podklady pro fakturaci) ----------------
+  // ---------------- Billing (data for invoicing) ----------------
 
   server.registerTool(
     "clio_billable_matters_list",
     {
-      title: "Spisy s nevyfakturovaným časem",
-      description: "Vypíše spisy s nevyfakturovanými hodinami/částkami (podklad pro přípravu faktur), volitelně za období a klienta. Slouží pro měsíční fakturaci.",
+      title: "Matters with unbilled time",
+      description: "Lists matters with unbilled hours/amounts (basis for preparing bills), optionally for a period and client. Intended for monthly billing.",
       inputSchema: {
         client_id: z.number().int().optional(),
         matter_id: z.number().int().optional(),
@@ -273,8 +275,8 @@ export const registerActivities: Registrar = (server) => {
   server.registerTool(
     "clio_bills_list",
     {
-      title: "Výpis faktur (bills)",
-      description: "Vypíše bills (v Clio jen podklad pro skutečnou fakturu) podle stavu (draft, awaiting_approval, awaiting_payment, paid, void), klienta, spisu, období vystavení nebo po splatnosti.",
+      title: "List bills",
+      description: "Lists bills (in Clio only the basis for the actual invoice) by state (draft, awaiting_approval, awaiting_payment, paid, void), client, matter, issue period, or overdue only.",
       inputSchema: {
         state: z.enum(["draft", "awaiting_approval", "awaiting_payment", "paid", "void", "deleted"]).optional(),
         overdue_only: z.boolean().optional(),
@@ -282,7 +284,7 @@ export const registerActivities: Registrar = (server) => {
         matter_id: z.number().int().optional(),
         issued_after: dateSchema.optional(),
         issued_before: dateSchema.optional(),
-        query: z.string().optional().describe("Číslo/předmět"),
+        query: z.string().optional().describe("Number/subject"),
         type: z.enum(["revenue", "trust"]).optional(),
         limit: z.number().int().min(1).max(200).optional(),
         page_token: z.string().optional(),
@@ -297,8 +299,8 @@ export const registerActivities: Registrar = (server) => {
   server.registerTool(
     "clio_bill_get",
     {
-      title: "Detail bill včetně položek",
-      description: "Vrátí detail bill a jeho položky (line items: datum, popis, množství, cena, celkem, vazba na časový záznam). Volitelně i předrenderované HTML podkladu.",
+      title: "Bill detail including line items",
+      description: "Returns the bill detail and its line items (date, description, quantity, price, total, link to the time entry). Optionally also the pre-rendered HTML of the bill.",
       inputSchema: { bill_id: z.number().int(), include_html: z.boolean().optional() },
     },
     wrap("clio_bill_get", async ({ bill_id, include_html }: { bill_id: number; include_html?: boolean }) => {
@@ -316,8 +318,8 @@ export const registerActivities: Registrar = (server) => {
   server.registerTool(
     "clio_bill_update",
     {
-      title: "Upravit bill",
-      description: "Upraví hlavičku bill (předmět, poznámka/memo, datum vystavení, splatnost, stav – např. draft → awaiting_approval, void). Zápis – vyžaduje confirm=true. Odesílání klientovi konektor neprovádí.",
+      title: "Update bill",
+      description: "Updates the bill header (subject, memo, issue date, due date, state – e.g. draft → awaiting_approval, void). Write operation – requires confirm=true. The connector does not send bills to clients.",
       inputSchema: {
         bill_id: z.number().int(),
         subject: z.string().optional(),
@@ -331,10 +333,10 @@ export const registerActivities: Registrar = (server) => {
     },
     wrap("clio_bill_update", async ({ bill_id, confirm, ...changes }: { bill_id: number; confirm?: boolean } & Record<string, unknown>) => {
       const body = compact(changes);
-      if (!Object.keys(body).length) return text("Nebyla zadána žádná změna.");
+      if (!Object.keys(body).length) return text(t("activities.no_changes"));
       if (!confirm) {
         const cur = await apiRequest<{ data: unknown }>("GET", `/bills/${bill_id}`, { query: { fields: BILL_FIELDS } });
-        return preview(`Úprava bill ${bill_id}`, { current: cur.data.data, changes: body });
+        return preview(t("activities.preview_update_bill", { id: bill_id }), { current: cur.data.data, changes: body });
       }
       const r = await apiRequest<{ data: unknown }>("PATCH", `/bills/${bill_id}`, { query: { fields: BILL_FIELDS }, body });
       return json(r.data.data);
@@ -344,12 +346,12 @@ export const registerActivities: Registrar = (server) => {
   server.registerTool(
     "clio_line_item_update",
     {
-      title: "Upravit položku bill",
-      description: "Upraví položku bill (popis, množství, cena, datum, poznámka); s update_original_record=true se změna propíše i do původního časového záznamu. Zápis – vyžaduje confirm=true.",
+      title: "Update bill line item",
+      description: "Updates a bill line item (description, quantity, price, date, note); with update_original_record=true the change is also written back to the original time entry. Write operation – requires confirm=true.",
       inputSchema: {
         line_item_id: z.number().int(),
         description: z.string().optional(),
-        quantity: z.number().optional().describe("U služeb v hodinách"),
+        quantity: z.number().optional().describe("For services, in hours"),
         price: z.number().optional(),
         date: dateSchema.optional(),
         note: z.string().optional(),
@@ -359,8 +361,8 @@ export const registerActivities: Registrar = (server) => {
     },
     wrap("clio_line_item_update", async ({ line_item_id, confirm, ...changes }: { line_item_id: number; confirm?: boolean } & Record<string, unknown>) => {
       const body = compact(changes);
-      if (!Object.keys(body).length) return text("Nebyla zadána žádná změna.");
-      if (!confirm) return preview(`Úprava položky ${line_item_id}`, body);
+      if (!Object.keys(body).length) return text(t("activities.no_changes"));
+      if (!confirm) return preview(t("activities.preview_update_line_item", { id: line_item_id }), body);
       const r = await apiRequest<{ data: unknown }>("PATCH", `/line_items/${line_item_id}`, { query: { fields: "id,description,quantity,price,total,date,note" }, body });
       return json(r.data.data);
     })
@@ -369,8 +371,8 @@ export const registerActivities: Registrar = (server) => {
   server.registerTool(
     "clio_outstanding_balances",
     {
-      title: "Neuhrazené zůstatky klientů",
-      description: "Vypíše klienty s neuhrazenými bills: celkový dluh, poslední platba, nejnovější splatnost, seznam neuhrazených bills.",
+      title: "Outstanding client balances",
+      description: "Lists clients with outstanding bills: total amount owed, last payment, newest due date, list of outstanding bills.",
       inputSchema: { limit: z.number().int().min(1).max(200).optional(), page_token: z.string().optional() },
     },
     wrap("clio_outstanding_balances", async ({ limit, page_token }: { limit?: number; page_token?: string }) => {

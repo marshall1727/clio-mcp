@@ -1,0 +1,23 @@
+{
+  "core.auth_already_running": "Přihlášení už běží – použijte stejnou URL.",
+  "core.auth_started": "Přihlášení do Clio zahájeno.",
+  "core.auth_browser_opened": "Prohlížeč by se měl otevřít s přihlašovací stránkou Clio.",
+  "core.auth_browser_not_opened": "Prohlížeč se nepodařilo otevřít automaticky.",
+  "core.auth_open_manually": "Pokud se stránka neobjevila, otevřete ručně: {url}",
+  "core.auth_next_step": "Po potvrzení přístupu v prohlížeči (callback na portu {port}) zavolejte clio_auth_status pro ověření. Platnost odkazu: 10 minut.",
+  "core.auth_in_progress": "Přihlášení běží (stav: {status}, zahájeno {started_at}). Dokončete potvrzení v prohlížeči; URL: {url}",
+  "core.auth_last_attempt_failed": "Poslední pokus o přihlášení skončil: {status} – {error}. Spusťte clio_authenticate znovu.",
+  "core.not_signed_in": "Nepřihlášeno. Region {region}, API {api_base}. Spusťte clio_authenticate.",
+  "core.tokens_removed": "Tokeny odstraněny z tohoto PC.",
+  "core.token_revoked": "Token zneplatněn i v Clio.",
+  "core.token_revoke_failed": "Zneplatnění v Clio se nezdařilo (token už mohl být neplatný).",
+  "core.schema_not_found": "Schéma '{schema}' není v katalogu. Dostupná např.: {list} …",
+  "core.endpoint_method_not_found": "Endpoint s touto metodou nenalezen. Dostupné:\n{list}",
+  "core.endpoint_not_found": "Endpoint {path} nenalezen. Zkuste query.",
+  "core.catalog_generated": "Katalog vygenerován {generated_at} z {source}.",
+  "core.search_nothing_found": "Nic nenalezeno. Zkuste jiná klíčová slova (anglicky, např. 'activities', 'bills', 'documents').",
+  "core.search_detail_hint": "Pro detail zavolejte znovu s method + path.",
+  "core.validation_warnings": "\nVarování:\n- {warnings}",
+  "core.validation_failed": "Požadavek neodeslán – validace proti OpenAPI:\n- {errors}{warnings}\n(Pro odeslání i přes chyby použijte skip_validation=true.)",
+  "core.api_request_preview": "NÁHLED (neodesláno). Pro provedení zopakujte s confirm=true.\n{method} {url}\nquery: {query}\nbody: {body}{warnings}"
+}

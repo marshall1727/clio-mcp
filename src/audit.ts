@@ -32,6 +32,6 @@ export function audit(entry: {
     const line = JSON.stringify({ ts: new Date().toISOString(), ...entry, args: redact(entry.args) });
     fs.appendFileSync(config.auditFile, line + "\n", { mode: 0o600 });
   } catch {
-    /* audit nesmí shodit nástroj */
+    /* auditing must never break the tool */
   }
 }

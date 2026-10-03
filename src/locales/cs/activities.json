@@ -1,0 +1,14 @@
+{
+  "activities.summary_filter_required": "Zadejte alespoň matter_id, user_id nebo start_date.",
+  "activities.preview_new_time_entry": "Nový časový záznam",
+  "activities.preview_new_expense": "Nový výdaj",
+  "activities.no_changes": "Nebyla zadána žádná změna.",
+  "activities.preview_update_activity": "Úprava záznamu {id}",
+  "activities.timer_not_running": "Žádný časovač neběží.",
+  "activities.timer_start_requires_matter": "Pro start zadejte matter_id.",
+  "activities.preview_timer_start": "Spustit časovač",
+  "activities.preview_timer_stop": "Zastavit časovač",
+  "activities.timer_stop_unsupported": "Zastavení časovače vyžaduje DELETE /timer, který je v tomto konektoru blokován. Zastavte časovač v Clio (tlačítko Stop); zapsaný čas pak upravte nástrojem clio_activity_update.",
+  "activities.preview_update_bill": "Úprava bill {id}",
+  "activities.preview_update_line_item": "Úprava položky {id}"
+}

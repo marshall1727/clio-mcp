@@ -1,12 +1,15 @@
-/** Extrakce textu z dokumentů (DOCX, PDF, TXT/EML/CSV) na straně serveru – aby Claude mohl číst obsah spisu i bez přístupu k disku. */
+/** Server-side text extraction from documents (DOCX, PDF, TXT/EML/CSV) – so that Claude can read matter contents even without disk access. */
 import path from "node:path";
 import { unzipSync, strFromU8 } from "fflate";
+import { t } from "./i18n.js";
 
 export interface Extracted {
   text: string;
   kind: "docx" | "pdf" | "text" | "unsupported";
   pages?: number;
   note?: string;
+  /** true when a PDF has no usable text layer (probably a scan) */
+  scanned?: boolean;
 }
 
 function decodeXml(s: string): string {
@@ -20,12 +23,12 @@ function decodeXml(s: string): string {
     .replace(/&amp;/g, "&");
 }
 
-/** DOCX: word/document.xml → odstavce; tabulky jako řádky s tabulátory; hlavička/zápatí zvlášť. */
+/** DOCX: word/document.xml → paragraphs; tables as tab-separated rows; header/footer separately. */
 function docxText(buf: Buffer): Extracted {
   const files = unzipSync(new Uint8Array(buf));
   const part = (name: string) => (files[name] ? strFromU8(files[name]) : undefined);
   const body = part("word/document.xml");
-  if (!body) return { text: "", kind: "unsupported", note: "DOCX neobsahuje word/document.xml." };
+  if (!body) return { text: "", kind: "unsupported", note: t("runtime.docx_missing_document_xml") };
   const xmlToText = (xml: string) =>
     xml
       .replace(/<w:tab\/>/g, "\t")
@@ -45,19 +48,20 @@ function docxText(buf: Buffer): Extracted {
     .filter((n) => /^word\/(header|footer)\d*\.xml$/.test(n))
     .map((n) => xmlToText(part(n)!))
     .filter(Boolean);
-  const text = headers.length ? `${main}\n\n[hlavička/zápatí]\n${headers.join("\n")}` : main;
+  const text = headers.length ? `${main}\n\n${t("runtime.docx_header_footer_marker")}\n${headers.join("\n")}` : main;
   return { text, kind: "docx" };
 }
 
 async function pdfText(buf: Buffer): Promise<Extracted> {
-  // pdfjs legacy build funguje v Node bez workeru
+  // the pdfjs legacy build works in Node without a worker
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  // worker je přibalen vedle bundlu (pkg/server/pdf.worker.mjs)
+  // the worker is shipped next to the bundle (pkg/server/pdf.worker.mjs)
   if (!pdfjs.GlobalWorkerOptions.workerSrc) {
     pdfjs.GlobalWorkerOptions.workerSrc = new URL("./pdf.worker.mjs", import.meta.url).href;
   }
   const doc = await pdfjs.getDocument({ data: new Uint8Array(buf), useSystemFonts: true, disableFontFace: true, isEvalSupported: false, verbosity: 0 }).promise;
   const parts: string[] = [];
+  const bodies: string[] = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
@@ -79,11 +83,15 @@ async function pdfText(buf: Buffer): Promise<Extracted> {
       lastY = y;
     }
     if (line) lines.push(line);
-    parts.push(`--- strana ${i} ---\n${lines.join("\n").trim()}`);
+    const pageBody = lines.join("\n").trim();
+    bodies.push(pageBody);
+    parts.push(`${t("runtime.pdf_page_marker", { page: i })}\n${pageBody}`);
   }
   const text = parts.join("\n\n").trim();
-  const bare = text.replace(/--- strana \d+ ---/g, "").trim();
-  return { text, kind: "pdf", pages: doc.numPages, note: bare.length < 20 ? "PDF nemá textovou vrstvu (pravděpodobně sken) – je potřeba OCR." : undefined };
+  // text without the page markers – used to detect a missing text layer (scanned PDF)
+  const bare = bodies.join("\n\n").trim();
+  const scanned = bare.length < 20;
+  return { text, kind: "pdf", pages: doc.numPages, scanned, note: scanned ? t("runtime.pdf_no_text_layer") : undefined };
 }
 
 export async function extractText(buf: Buffer, fileName: string): Promise<Extracted> {
@@ -91,18 +99,18 @@ export async function extractText(buf: Buffer, fileName: string): Promise<Extrac
   if (ext === ".docx" || ext === ".dotx") return docxText(buf);
   if (ext === ".pdf") return pdfText(buf);
   if ([".txt", ".md", ".csv", ".eml", ".json", ".xml", ".html", ".htm", ".rtf"].includes(ext)) {
-    let t = buf.toString("utf8");
-    if (ext === ".html" || ext === ".htm") t = decodeXml(t.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/g, "").replace(/<br\s*\/?>|<\/p>|<\/div>|<\/tr>/g, "\n").replace(/<[^>]+>/g, ""));
-    return { text: t, kind: "text" };
+    let txt = buf.toString("utf8");
+    if (ext === ".html" || ext === ".htm") txt = decodeXml(txt.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/g, "").replace(/<br\s*\/?>|<\/p>|<\/div>|<\/tr>/g, "\n").replace(/<[^>]+>/g, ""));
+    return { text: txt, kind: "text" };
   }
   return {
     text: "",
     kind: "unsupported",
-    note: `Formát ${ext || "(bez přípony)"} neumím převést na text. Podporováno: DOCX, PDF (s textovou vrstvou), TXT/EML/CSV/HTML. Starý .doc otevřete ve Wordu a uložte jako .docx.`,
+    note: t("runtime.unsupported_format", { ext: ext || t("runtime.no_extension") }),
   };
 }
 
-// ---------------- Rastr: stránky PDF a obrázky pro čtení Claudem (vizuální "OCR") ----------------
+// ---------------- Raster: PDF pages and images for Claude to read (visual "OCR") ----------------
 
 export interface PageImage {
   page: number;
@@ -113,15 +121,15 @@ export interface PageImage {
 }
 
 async function loadCanvas() {
-  // nativní modul (@napi-rs/canvas) je mimo bundle – leží v node_modules balíčku
+  // the native module (@napi-rs/canvas) is outside the bundle – it lives in the package's node_modules
   try {
     return await import("@napi-rs/canvas");
   } catch (e) {
-    throw new Error(`Vykreslení stránek není dostupné (nativní modul @napi-rs/canvas se nenačetl: ${(e as Error).message}). Textová vrstva PDF a DOCX fungují dál; pro sken použijte Cowork s připojenou složkou nebo soubor přiložte do chatu.`);
+    throw new Error(t("runtime.canvas_unavailable", { detail: (e as Error).message }));
   }
 }
 
-/** Vykreslí vybrané stránky PDF do JPEG (výchozí ~110 DPI, max. šířka 1400 px). */
+/** Renders the selected PDF pages to JPEG (default ~110 DPI, max. width 1400 px). */
 export async function renderPdfPages(buf: Buffer, pages: number[], opts: { scale?: number; quality?: number } = {}): Promise<{ images: PageImage[]; numPages: number }> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   if (!pdfjs.GlobalWorkerOptions.workerSrc) pdfjs.GlobalWorkerOptions.workerSrc = new URL("./pdf.worker.mjs", import.meta.url).href;
@@ -138,7 +146,7 @@ export async function renderPdfPages(buf: Buffer, pages: number[], opts: { scale
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    // pdfjs očekává CanvasRenderingContext2D – @napi-rs/canvas je API-kompatibilní
+    // pdfjs expects a CanvasRenderingContext2D – @napi-rs/canvas is API-compatible
     await page.render({ canvasContext: ctx as unknown as CanvasRenderingContext2D, viewport }).promise;
     const data = canvas.toBuffer("image/jpeg", opts.quality ?? 80);
     images.push({ page: n, mimeType: "image/jpeg", data, width: canvas.width, height: canvas.height });
@@ -146,7 +154,7 @@ export async function renderPdfPages(buf: Buffer, pages: number[], opts: { scale
   return { images, numPages: doc.numPages };
 }
 
-/** Obrázek (JPG/PNG/WebP/GIF/BMP): zmenší na max. 1600 px a vrátí JPEG; jiné formáty vrátí beze změny. */
+/** Image (JPG/PNG/WebP/GIF/BMP): downscales to max. 1600 px and returns JPEG; other formats are returned unchanged. */
 export async function normalizeImage(buf: Buffer, fileName: string): Promise<PageImage> {
   const ext = path.extname(fileName).toLowerCase();
   const mime = ext === ".png" ? "image/png" : "image/jpeg";
