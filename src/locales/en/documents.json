@@ -50,5 +50,6 @@
   "documents.folder_list_need_parent": "Provide matter_id or parent_id.",
   "documents.folder_create_need_parent": "Provide matter_id or parent_folder_id.",
   "documents.preview_new_folder": "New folder",
-  "documents.preview_comment": "Comment on document {document_id}"
+  "documents.preview_comment": "Comment on document {document_id}",
+  "documents.content_empty": "No document was created: the content is empty or too short. Ask the user what the document should contain (type, addressee, text) and call the tool again with the full text in content. For a blank letterhead on disk use mode='download'."
 }

@@ -454,7 +454,8 @@ export const registerDocuments: Registrar = (server) => {
         "Creates a new document in a matter from a letterhead / template (Document Template in Clio): selected by template_id or template, otherwise by configuration (user → template map, default template, kind=internal → internal template). " +
         `RECOMMENDED APPROACH (works everywhere, even without disk access): pass the finished text in the content parameter – the server inserts it into the letterhead (docx) and uploads it to the "${config.claudeFolderName}" folder in the matter (confirm=true). ` +
         "content format: empty line = empty paragraph; '# ' / '## ' / '### ' = Heading 2/3/4 of the template; **bold**; '[ 1. ] text' = numbered paragraph (number in the margin, text with a hanging indent); 'Label:: text' = bold label + tab; '- ' bullet; '\\t' tab; '---pagebreak---' page break; ':::center text' centred, ':::right text' right-aligned. Follow the user's conventions for the document structure (addressee, reference numbers, date, heading, enclosures) if they state them. " +
-        "Alternatives: without content, mode='download' only downloads the template for manual editing (Cowork with a connected folder); mode='automation' lets Clio generate the document via Document Automation. Without a letterhead only with without_letterhead=true.",
+        "Alternatives: without content, mode='download' only downloads the template for manual editing (Cowork with a connected folder); mode='automation' lets Clio generate the document via Document Automation. Without a letterhead only with without_letterhead=true. " +
+        "Do not create empty documents: if the user has not provided the text (and the document type, addressee, matter), ask before calling this tool. Choose filename from the document type and addressee (e.g. 'Letter_to_opposing_counsel_2026-10-03.docx') unless the user names it.",
       inputSchema: {
         matter_id: z.number().int().describe("ID of the matter the document belongs to"),
         filename: z.string().describe("Name of the new document including the extension, e.g. 'Statement of defence.docx'"),
@@ -465,7 +466,7 @@ export const registerDocuments: Registrar = (server) => {
         formats: z.array(z.enum(["original", "pdf"])).optional().describe("Automation only: original = template format (docx), pdf; default ['original']"),
         without_letterhead: z.boolean().optional().describe("true = do not use a template (only returns instructions for uploading a plain file)"),
         target_dir: z.string().optional().describe("Custom target folder on the PC (absolute path), e.g. a folder connected in Cowork; default work folder/matter"),
-        content: z.string().optional().describe("Finished document text (markdown-lite, see description). If provided, the server fills the letterhead and uploads the document to Clio."),
+        content: z.string().optional().describe("Finished document text (markdown-lite, see description). If provided, the server fills the letterhead and uploads the document to Clio. Never pass empty or placeholder text – if the user has not said what the document should contain, ask first."),
         keep_local_copy: z.boolean().optional().describe("true = also save the filled file to the work folder (default true)"),
         confirm: confirmSchema,
       },
@@ -491,6 +492,7 @@ export const registerDocuments: Registrar = (server) => {
         const pick = await pickLetterhead(kind ?? "user", template_id ?? template);
         if (content !== undefined) {
           // server-side filling of the letterhead and upload to the "Claude" folder
+          if (content.trim().length < 20) return text(t("documents.content_empty"));
           const finalName = safeName(filename.toLowerCase().endsWith(".docx") ? filename : filename + ".docx");
           if (!confirm) {
             return preview(t("documents.preview_letterhead_document", { matter: m.display_number, folder: config.claudeFolderName }), { filename: finalName, template: pick.template.filename, reason: pick.reason, content_preview: content.slice(0, 1500) + (content.length > 1500 ? "…" : ""), content_chars: content.length });

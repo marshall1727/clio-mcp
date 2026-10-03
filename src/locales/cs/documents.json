@@ -50,5 +50,6 @@
   "documents.folder_list_need_parent": "Zadejte matter_id nebo parent_id.",
   "documents.folder_create_need_parent": "Zadejte matter_id nebo parent_folder_id.",
   "documents.preview_new_folder": "Nová složka",
-  "documents.preview_comment": "Komentář k dokumentu {document_id}"
+  "documents.preview_comment": "Komentář k dokumentu {document_id}",
+  "documents.content_empty": "Dokument nebyl vytvořen: obsah je prázdný nebo příliš krátký. Zeptejte se uživatele, co má dokument obsahovat (typ, adresát, text), a zavolejte nástroj znovu s úplným textem v content. Prázdný hlavičkový papír na disk získáte přes mode='download'."
 }
