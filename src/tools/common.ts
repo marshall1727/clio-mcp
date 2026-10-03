@@ -53,12 +53,39 @@ function canonical(v: unknown): string {
 export function confirmToken(tool: string, args: unknown): string {
   return crypto.createHmac("sha256", CONFIRM_SECRET).update(`${tool}\n${canonical(args)}`).digest("base64url").slice(0, 12);
 }
+/**
+ * Normalises `args.confirm` in place and decides whether a write may proceed.
+ * Models sometimes send "true"/"yes" as strings – treat them like `true`.
+ * Returns a refusal message, or undefined when the call may go on.
+ */
 function checkConfirm(tool: string, args: unknown): string | undefined {
-  const c = (args as any)?.confirm;
-  if (c === undefined || c === false || c === null || c === "") return undefined;
-  if (c === true) return config.confirmMode === "ask" ? t("common.confirm_true_rejected") : undefined;
-  if (typeof c === "string" && c === confirmToken(tool, args)) return undefined;
-  return t("common.confirm_token_invalid");
+  const a = args as Record<string, unknown> | undefined;
+  if (!a || !("confirm" in a)) return undefined;
+  let c = a.confirm;
+  if (typeof c === "string") {
+    const v = c.trim();
+    if (v === "" || /^(false|0|no|null|undefined)$/i.test(v)) c = undefined;
+    else if (/^(true|1|yes|y|ok|confirm|confirmed)$/i.test(v)) c = true;
+    else c = v; // candidate token
+  }
+  if (c === undefined || c === false || c === null) {
+    a.confirm = undefined;
+    return undefined;
+  }
+  if (c === true) {
+    if (config.confirmMode === "ask") return t("common.confirm_true_rejected");
+    a.confirm = true;
+    return undefined;
+  }
+  // string token
+  if (c === confirmToken(tool, args)) {
+    a.confirm = true;
+    return undefined;
+  }
+  if (config.confirmMode === "ask") return t("common.confirm_token_invalid");
+  // auto mode: an unknown string is still an explicit confirmation
+  a.confirm = true;
+  return undefined;
 }
 
 /** Wrapper: audit + uniform error handling. */
