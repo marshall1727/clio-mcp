@@ -54,5 +54,6 @@
   "runtime.describe_query_params": "Query parameters:",
   "runtime.describe_body": "Body (data):",
   "runtime.describe_response": "Response: {list}{schema}; fields for the fields parameter:",
-  "runtime.describe_response_list": "list of "
+  "runtime.describe_response_list": "list of ",
+  "runtime.instructions_2_auto": "2) Write tools: when the user's request contains all the information the write needs, perform it directly with confirm=true and report what was written – do not ask for approval. When something is missing or ambiguous (e.g. which matter, what text, which activity), ask the user first; never invent content or names. Calling without confirm returns a preview you can use to check the data. Risky changes (bill state, overwriting a document with new text) deserve a short check with the user unless they asked for exactly that."
 }

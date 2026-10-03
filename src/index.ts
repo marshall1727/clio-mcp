@@ -23,7 +23,7 @@ const server = new McpServer(
     instructions: [
       t("runtime.instructions_intro", { region: config.region.toUpperCase() }),
       t("runtime.instructions_1"),
-      t("runtime.instructions_2"),
+      t(config.confirmMode === "ask" ? "runtime.instructions_2" : "runtime.instructions_2_auto"),
       t("runtime.instructions_3", { claudeFolder: config.claudeFolderName }),
       t("runtime.instructions_4"),
       t("runtime.instructions_5"),

@@ -22,7 +22,7 @@ An [MCP](https://modelcontextprotocol.io) server that lets Claude work inside yo
 ## What it deliberately does **not** do
 
 - **Nothing is ever deleted.** The connector has no delete tools and the generic API call refuses the `DELETE` method – both in the tool definition and in the HTTP client. If something needs deleting (a test time entry, a duplicate folder, a timer that must be stopped – Clio stops timers with `DELETE /timer`), do it in Clio itself.
-- **No write without your confirmation.** Every tool that creates or changes data returns a **preview** first, together with a one-time confirmation token. The change is made only when the tool is called again with the same arguments and that token – Claude cannot skip the preview (`confirm=true` is rejected by the server), and a token never fits changed arguments.
+- **You decide how writes are confirmed.** The *Write confirmation* setting has two modes (details below): **auto** (default) – Claude records the time, creates the document or updates the task directly when your request is complete, and asks only when information is missing; **ask** – every write first shows you a preview and is carried out only after your approval, which the server enforces with a confirmation token.
 - **No bills are created or sent.** Clio's API only lets bills be read and edited; sending invoices to clients stays in Clio.
 - **No way around Clio permissions.** If your Clio role hides something (rates, bills, other users' time), the API returns it as `redacted` and the connector shows exactly that.
 - **No cloud component.** Tokens, the audit log and downloaded documents stay on your computer. The only parties that see your data are Clio and the Claude model you talk to (under your Anthropic plan's terms).
@@ -67,6 +67,7 @@ Clio's own guide: https://docs.developers.clio.com/api-docs/clio-manage/applicat
 | --- | --- |
 | **Clio region** | `us`, `eu`, `ca` or `au` – the region your Clio account lives in (look at the address bar when you use Clio: `app.clio.com` = us, `eu.app.clio.com` = eu, …). |
 | Language of messages | Optional, default `en`. Language of previews, errors and notes (`en` or `cs`). Tool descriptions are always English; Claude answers in whatever language you write. |
+| Write confirmation | Optional, default `auto`. How Claude confirms writes to Clio – see [Write confirmation modes](#write-confirmation-modes). |
 | **Clio App Key (Client ID)** | The App Key from step 1. |
 | **Clio App Secret (Client Secret)** | The App Secret from step 1. Claude Desktop stores it in the Windows Credential Manager, not in a file. |
 | Work folder for documents | Optional. Folder on your PC where documents are downloaded for editing (default `Documents\Clio MCP`). If you use Cowork, connect the same folder there. |
@@ -118,9 +119,20 @@ Claude passes plain text with a tiny markup; the server converts it into Word pa
 
 Header, footer, page numbers and fonts come from the template, so the result looks like a document created with Clio's *New document* function. Advanced: the hanging indent (default 1.4 cm) and extra single-colon labels can be set through the environment variables `CLIO_DOCX_INDENT_CM` and `CLIO_DOCX_LABELS` when the server is run outside Claude Desktop.
 
+## Write confirmation modes
+
+Every tool that changes data in Clio (time entries, documents, tasks, contacts, bills…) can be called in two steps: a **preview** (nothing is sent) and the **write**. The *Write confirmation* setting decides who approves the write:
+
+| Mode | What happens | For whom |
+| --- | --- | --- |
+| **auto** (default) | When your request already contains everything the write needs – *"Record 0.5 h on Smith for today's call"* – Claude writes it straight away and tells you what it did. It asks first only when something is missing or ambiguous (which matter, what text, which activity) and it never invents content. Claude may still use the preview internally to check the data. | Users who want speed and give complete instructions. |
+| **ask** | Claude must first show you a preview of exactly what will be written and wait for your approval. The server enforces this: the preview contains a one-time confirmation token bound to those exact arguments, `confirm=true` is rejected, and the write is accepted only with the token – so a write without a preceding preview is technically impossible. | Firms that want a human check on every change, shared PCs, onboarding of new users. |
+
+In both modes deleting is impossible and every call is written to the audit log. You can switch modes at any time in the extension settings (restart Claude Desktop afterwards).
+
 ## Safety model
 
-- **Preview → confirm handshake** for every write: the preview carries a confirmation token bound to the exact arguments; only that token authorises the write. The server rejects `confirm=true` and tokens for changed arguments, so the model must show you the preview before anything is written.
+- **Write confirmation** – `auto` (direct writes when the request is complete) or `ask` (server-enforced preview → token → write); see above.
 - **DELETE is impossible.** Not offered as a tool, rejected by `clio_api_request`, and refused again inside the HTTP client.
 - **Audit log** of every call (`%USERPROFILE%\.clio-mcp\audit.jsonl`, append-only; secrets redacted): who, when, which tool, parameters, result.
 - **Tokens** are encrypted with Windows DPAPI (bound to your Windows account and PC); the App Secret lives in the Windows Credential Manager.

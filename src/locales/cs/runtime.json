@@ -54,5 +54,6 @@
   "runtime.describe_query_params": "Query parametry:",
   "runtime.describe_body": "Tělo (data):",
   "runtime.describe_response": "Odpověď: {list}{schema}; pole pro parametr fields:",
-  "runtime.describe_response_list": "seznam "
+  "runtime.describe_response_list": "seznam ",
+  "runtime.instructions_2_auto": "2) Zápisové nástroje: pokud požadavek uživatele obsahuje všechny potřebné údaje, proveďte zápis rovnou s confirm=true a oznamte, co bylo zapsáno – neptejte se na souhlas. Pokud něco chybí nebo je nejednoznačné (který spis, jaký text, jaká činnost), nejdřív se zeptejte; nikdy si obsah ani názvy nevymýšlejte. Volání bez confirm vrátí náhled, kterým si můžete údaje zkontrolovat. Rizikové změny (stav faktury, přepsání dokumentu novým textem) si krátce ověřte u uživatele, pokud o ně výslovně nepožádal."
 }

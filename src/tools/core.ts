@@ -167,7 +167,7 @@ export const registerCore: Registrar = (server) => {
         }
         if (method !== "GET" && !confirm) {
           const r = text(
-            t("core.api_request_preview", {
+            t(config.confirmMode === "ask" ? "core.api_request_preview" : "core.api_request_preview_auto", {
               method,
               url: `${config.apiBase}${path}`,
               query: JSON.stringify(query ?? {}),

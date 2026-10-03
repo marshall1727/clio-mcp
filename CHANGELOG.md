@@ -13,7 +13,7 @@ All notable changes to this project are documented here. The format follows [Kee
 First public version, derived from an internal connector that has been in daily use since September 2026 (internal versions 0.1–0.3.3).
 
 ### Added
-- Preview → confirm handshake enforced by the server: previews return a confirmation token bound to the arguments; `confirm=true` is rejected, so a write is impossible without a preceding preview.
+- *Write confirmation* setting (`CLIO_CONFIRM_MODE`): `auto` (default) – the model writes directly when the request is complete and asks only when information is missing; `ask` – server-enforced preview → confirmation-token → write handshake (`confirm=true` rejected, token bound to the exact arguments).
 - `clio_document_create_from_letterhead` refuses empty content and instructs the model to ask for the text first.
 - English as the source language throughout (tool titles, descriptions, parameters, comments); runtime messages go through a small message catalog (`src/i18n.ts`, `src/locales/`) with English and Czech, selected by the *Language of messages* setting (`CLIO_LOCALE`).
 - Bring-your-own Developer Application: region, App Key and App Secret are entered in the extension settings; no credentials are shipped with the package.

@@ -2,5 +2,7 @@
   "common.preview_header": "PREVIEW – nothing was sent. Show this preview to the user and wait for their explicit approval. Then repeat the call with identical arguments and confirm set to the token below.",
   "common.preview_token_line": "confirm_token: {token}",
   "common.confirm_true_rejected": "Write refused: confirm=true is not accepted. Call the tool first without confirm to get a preview and a confirmation token, show the preview to the user, and after their approval repeat the call with confirm set to that token.",
-  "common.confirm_token_invalid": "Write refused: the confirmation token does not match these arguments (the arguments changed or the token belongs to another call). Call the tool without confirm to get a new preview, show it to the user and confirm with the new token."
+  "common.confirm_token_invalid": "Write refused: the confirmation token does not match these arguments (the arguments changed or the token belongs to another call). Call the tool without confirm to get a new preview, show it to the user and confirm with the new token.",
+  "common.preview_header_auto": "PREVIEW – nothing was sent. If the request is complete, repeat the call with confirm=true; if something is missing, ask the user.",
+  "common.preview_auto_hint": "To execute: repeat with confirm=true."
 }

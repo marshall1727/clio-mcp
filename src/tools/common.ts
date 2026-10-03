@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { loadTokens } from "../store.js";
 import { ClioApiError } from "../client.js";
 import { audit } from "../audit.js";
+import { config } from "../config.js";
 import { t } from "../i18n.js";
 
 export type ContentBlock = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
@@ -20,7 +21,7 @@ export const fail = (e: unknown): ToolResult => ({
 
 /** Preview of a write without executing it – a uniform format for all write tools. */
 export function preview(what: string, payload: unknown, extra?: string): ToolResult {
-  const r = text(`${t("common.preview_header")}\n${what}\n${JSON.stringify(payload, null, 2)}${extra ? `\n${extra}` : ""}`);
+  const r = text(`${t(config.confirmMode === "ask" ? "common.preview_header" : "common.preview_header_auto")}\n${what}\n${JSON.stringify(payload, null, 2)}${extra ? `\n${extra}` : ""}`);
   r._preview = true;
   return r;
 }
@@ -29,7 +30,9 @@ export const confirmSchema = z
   .union([z.boolean(), z.string()])
   .optional()
   .describe(
-    "Leave out on the first call: the tool returns a PREVIEW with a confirmation token. Show the preview to the user, wait for their explicit approval, then repeat the call with identical arguments and confirm set to that token. confirm=true is not accepted."
+    config.confirmMode === "ask"
+      ? "Leave out on the first call: the tool returns a PREVIEW with a confirmation token. Show the preview to the user, wait for their explicit approval, then repeat the call with identical arguments and confirm set to that token. confirm=true is not accepted."
+      : "confirm=true performs the write. Use it directly when the user's request contains everything needed; call without confirm (preview) only when you want to check the data first or something is unclear."
   );
 
 // ---- preview → confirm handshake -------------------------------------------------------------
@@ -53,7 +56,7 @@ export function confirmToken(tool: string, args: unknown): string {
 function checkConfirm(tool: string, args: unknown): string | undefined {
   const c = (args as any)?.confirm;
   if (c === undefined || c === false || c === null || c === "") return undefined;
-  if (c === true) return t("common.confirm_true_rejected");
+  if (c === true) return config.confirmMode === "ask" ? t("common.confirm_true_rejected") : undefined;
   if (typeof c === "string" && c === confirmToken(tool, args)) return undefined;
   return t("common.confirm_token_invalid");
 }
@@ -78,7 +81,7 @@ export function wrap<A>(tool: string, fn: (args: A) => Promise<ToolResult>) {
       const r = await fn(args);
       if (r._preview) {
         const token = confirmToken(tool, args);
-        r.content.push({ type: "text", text: t("common.preview_token_line", { token }) });
+        r.content.push({ type: "text", text: t(config.confirmMode === "ask" ? "common.preview_token_line" : "common.preview_auto_hint", { token }) });
       }
       audit({ tool, args, ok: !r.isError, user_id, duration_ms: Date.now() - started });
       return r;

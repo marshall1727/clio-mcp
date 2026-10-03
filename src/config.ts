@@ -68,6 +68,11 @@ export const config = (() => {
   const docxIndentTwips = Math.round((Number.isFinite(indentCm) && indentCm > 0 ? indentCm : 1.4) * 567);
   const docxLabels = parseList(env("CLIO_DOCX_LABELS"));
 
+  // Write confirmation policy: "auto" = the model writes directly when the request is complete (default);
+  // "ask" = every write needs the confirmation token from a preview shown to the user first.
+  const confirmModeRaw = (env("CLIO_CONFIRM_MODE", "auto") ?? "auto").toLowerCase();
+  const confirmMode: "auto" | "ask" = confirmModeRaw === "ask" || confirmModeRaw === "always" ? "ask" : "auto";
+
   const ports = (env("CLIO_REDIRECT_PORTS", "53682,53683,53684")!)
     .split(",")
     .map((p) => parseInt(p.trim(), 10))
@@ -95,6 +100,7 @@ export const config = (() => {
     defaultTemplate,
     internalTemplate,
     claudeFolderName,
+    confirmMode,
     docxIndentTwips,
     docxLabels,
     name: "clio-mcp",
