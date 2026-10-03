@@ -1,0 +1,352 @@
+{
+  "manifest_version": "0.3",
+  "name": "clio-mcp",
+  "display_name": "Clio Manage",
+  "version": "1.0.0-beta.1",
+  "description": "Work in Clio Manage from Claude: documents (read, create on letterhead, new versions), time entries, billing data, matters, contacts, tasks, calendar – plus a validated generic API call. Writes need confirmation; deleting is not possible.",
+  "long_description": "MCP server connecting Claude Desktop (and Cowork) to Clio Manage through the official Clio API v4, in all Clio regions (US, EU, CA, AU).\n\n**55 tools**: OAuth sign-in (tokens encrypted with Windows DPAPI), documents (search, read DOCX/PDF text – scanned pages are returned as images Claude can read –, download for editing, new versions, new documents created on your letterhead/template and saved to a \"Claude\" folder in the matter), time and expense entries, billing data (bills, line items, unbilled matters, outstanding balances), matters, contacts, tasks, calendar, notes, communications, users, custom fields; and a generic API call validated against Clio's OpenAPI description.\n\n**Safety model**: every write tool returns a preview unless called with confirm=true; **DELETE is never performed** (not even through the generic API call); every call is written to a local audit log.\n\nYou need your own Clio Developer Application (App Key and App Secret) – see the README for a step-by-step guide.",
+  "author": {
+    "name": "marshall1727",
+    "url": "https://github.com/marshall1727/clio-mcp"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marshall1727/clio-mcp"
+  },
+  "homepage": "https://github.com/marshall1727/clio-mcp",
+  "documentation": "https://github.com/marshall1727/clio-mcp#readme",
+  "support": "https://github.com/marshall1727/clio-mcp/issues",
+  "license": "Apache-2.0",
+  "keywords": [
+    "clio",
+    "clio manage",
+    "legal",
+    "law firm",
+    "practice management",
+    "documents",
+    "time tracking",
+    "billing"
+  ],
+  "privacy_policies": [
+    "https://github.com/marshall1727/clio-mcp/blob/main/PRIVACY.md",
+    "https://www.clio.com/privacy/"
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/server/index.js"
+      ],
+      "env": {
+        "CLIO_REGION": "${user_config.region}",
+        "CLIO_CLIENT_ID": "${user_config.client_id}",
+        "CLIO_CLIENT_SECRET": "${user_config.client_secret}",
+        "CLIO_WORK_DIR": "${user_config.work_dir}",
+        "CLIO_CLAUDE_FOLDER": "${user_config.claude_folder}",
+        "CLIO_DEFAULT_TEMPLATE": "${user_config.default_template}",
+        "CLIO_LETTERHEADS": "${user_config.letterheads}",
+        "CLIO_INTERNAL_TEMPLATE": "${user_config.internal_template}",
+        "CLIO_DOCX_INDENT_CM": "${user_config.docx_indent_cm}",
+        "CLIO_DOCX_LABELS": "${user_config.docx_labels}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "clio_authenticate",
+      "description": "Sign in to Clio (OAuth 2.0); returns the authorization URL"
+    },
+    {
+      "name": "clio_auth_status",
+      "description": "Sign-in status"
+    },
+    {
+      "name": "clio_logout",
+      "description": "Sign out on this computer (optionally revoke the token in Clio)"
+    },
+    {
+      "name": "clio_who_am_i",
+      "description": "Signed-in Clio user"
+    },
+    {
+      "name": "clio_describe_api",
+      "description": "Describe Clio API endpoints and schemas from the bundled OpenAPI catalog"
+    },
+    {
+      "name": "clio_api_request",
+      "description": "Generic API call (GET/POST/PATCH only; validated against OpenAPI; writes need confirm)"
+    },
+    {
+      "name": "clio_diagnostics",
+      "description": "Connector diagnostics (configuration, token store, work folder)"
+    },
+    {
+      "name": "clio_document_search",
+      "description": "Search documents"
+    },
+    {
+      "name": "clio_document_get",
+      "description": "Document details and versions"
+    },
+    {
+      "name": "clio_document_read",
+      "description": "Read a document's content: text (DOCX/PDF/TXT) or scanned pages as images"
+    },
+    {
+      "name": "clio_document_download",
+      "description": "Download a document to the local work folder"
+    },
+    {
+      "name": "clio_document_upload_version",
+      "description": "Upload a new version of a document"
+    },
+    {
+      "name": "clio_document_upload",
+      "description": "Upload a new document into the matter's Claude folder"
+    },
+    {
+      "name": "clio_document_write",
+      "description": "New version of a DOCX document from text (keeps header, footer and styles)"
+    },
+    {
+      "name": "clio_letterheads_list",
+      "description": "Letterheads and document templates"
+    },
+    {
+      "name": "clio_document_create_from_letterhead",
+      "description": "New document on a letterhead/template (text filled in server-side)"
+    },
+    {
+      "name": "clio_folder_list",
+      "description": "Folders of a matter"
+    },
+    {
+      "name": "clio_folder_create",
+      "description": "Create a folder"
+    },
+    {
+      "name": "clio_document_comment_add",
+      "description": "Add a comment to a document"
+    },
+    {
+      "name": "clio_time_entries_list",
+      "description": "List time and expense entries"
+    },
+    {
+      "name": "clio_time_summary",
+      "description": "Time summary per matter/period"
+    },
+    {
+      "name": "clio_activity_descriptions_list",
+      "description": "Activity descriptions (codes) and rates"
+    },
+    {
+      "name": "clio_time_entry_create",
+      "description": "Create a time entry"
+    },
+    {
+      "name": "clio_expense_create",
+      "description": "Create an expense entry"
+    },
+    {
+      "name": "clio_activity_update",
+      "description": "Update a time/expense entry"
+    },
+    {
+      "name": "clio_timer",
+      "description": "Timer (status/start; stopping is done in Clio)"
+    },
+    {
+      "name": "clio_billable_matters_list",
+      "description": "Matters with unbilled time/expenses"
+    },
+    {
+      "name": "clio_bills_list",
+      "description": "List bills"
+    },
+    {
+      "name": "clio_bill_get",
+      "description": "Bill details with line items"
+    },
+    {
+      "name": "clio_bill_update",
+      "description": "Update a bill (state, memo, dates)"
+    },
+    {
+      "name": "clio_line_item_update",
+      "description": "Update a bill line item"
+    },
+    {
+      "name": "clio_outstanding_balances",
+      "description": "Outstanding client balances"
+    },
+    {
+      "name": "clio_matter_search",
+      "description": "Search matters"
+    },
+    {
+      "name": "clio_matter_get",
+      "description": "Matter details"
+    },
+    {
+      "name": "clio_matter_create",
+      "description": "Create a matter"
+    },
+    {
+      "name": "clio_matter_update",
+      "description": "Update a matter"
+    },
+    {
+      "name": "clio_practice_areas_list",
+      "description": "Practice areas"
+    },
+    {
+      "name": "clio_custom_fields_list",
+      "description": "Custom fields"
+    },
+    {
+      "name": "clio_contact_search",
+      "description": "Search contacts"
+    },
+    {
+      "name": "clio_contact_get",
+      "description": "Contact details"
+    },
+    {
+      "name": "clio_contact_create",
+      "description": "Create a contact"
+    },
+    {
+      "name": "clio_contact_update",
+      "description": "Update a contact"
+    },
+    {
+      "name": "clio_task_list",
+      "description": "Tasks"
+    },
+    {
+      "name": "clio_task_create",
+      "description": "Create a task"
+    },
+    {
+      "name": "clio_task_update",
+      "description": "Update/complete a task"
+    },
+    {
+      "name": "clio_calendar_entries_list",
+      "description": "Calendar entries"
+    },
+    {
+      "name": "clio_calendars_list",
+      "description": "Calendars"
+    },
+    {
+      "name": "clio_calendar_entry_create",
+      "description": "Create a calendar entry"
+    },
+    {
+      "name": "clio_calendar_entry_update",
+      "description": "Update a calendar entry"
+    },
+    {
+      "name": "clio_notes_list",
+      "description": "Notes"
+    },
+    {
+      "name": "clio_note_create",
+      "description": "Create a note"
+    },
+    {
+      "name": "clio_communications_list",
+      "description": "Communications"
+    },
+    {
+      "name": "clio_communication_log",
+      "description": "Log a communication"
+    },
+    {
+      "name": "clio_users_list",
+      "description": "Users"
+    },
+    {
+      "name": "clio_text_snippets_list",
+      "description": "Text snippets"
+    }
+  ],
+  "tools_generated": false,
+  "compatibility": {
+    "platforms": [
+      "win32"
+    ],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  },
+  "user_config": {
+    "region": {
+      "type": "string",
+      "title": "Clio region",
+      "description": "Region of your Clio account: us (app.clio.com), eu (eu.app.clio.com), ca (ca.app.clio.com) or au (au.app.clio.com). Required.",
+      "required": true
+    },
+    "client_id": {
+      "type": "string",
+      "title": "Clio App Key (Client ID)",
+      "description": "App Key of the Developer Application you created in your Clio developer portal (see README, step 1).",
+      "required": true
+    },
+    "client_secret": {
+      "type": "string",
+      "title": "Clio App Secret (Client Secret)",
+      "description": "App Secret of the same application. Stored in the Windows Credential Manager by Claude Desktop.",
+      "sensitive": true,
+      "required": true
+    },
+    "work_dir": {
+      "type": "string",
+      "title": "Work folder for documents",
+      "description": "Absolute path of the folder where documents are downloaded for editing (default: Documents\\Clio MCP in your user profile). Connect the same folder in Cowork.",
+      "required": false
+    },
+    "claude_folder": {
+      "type": "string",
+      "title": "Folder name in Clio for documents created by Claude",
+      "description": "Name of the folder created in each matter's documents for files Claude creates (default: Claude).",
+      "required": false,
+      "default": "Claude"
+    },
+    "default_template": {
+      "type": "string",
+      "title": "Default letterhead / template",
+      "description": "Name (or name prefix, or id) of the Clio Document Template used for new documents when no per-user letterhead applies. Leave empty if you have a single template or will pick one per document.",
+      "required": false
+    },
+    "letterheads": {
+      "type": "string",
+      "title": "Per-user letterheads (optional)",
+      "description": "Map of user e-mail to template name/prefix, separated by semicolons, e.g. jane@firm.com=Jane_letterhead;john@firm.com=John_letterhead.",
+      "required": false
+    },
+    "internal_template": {
+      "type": "string",
+      "title": "Template for internal documents (optional)",
+      "description": "Template name/prefix used when a document is created with kind=internal (e.g. a plain document without letterhead).",
+      "required": false
+    },
+    "docx_indent_cm": {
+      "type": "string",
+      "title": "Hanging indent for numbered paragraphs (cm)",
+      "description": "Indent of the text in numbered paragraphs created from text (default 1.4).",
+      "required": false,
+      "default": "1.4"
+    },
+    "docx_labels": {
+      "type": "string",
+      "title": "Bold labels (optional)",
+      "description": "Semicolon-separated labels that start a line and are rendered bold with a tab, e.g. Evidence;Exhibit. Any line can also use the form Label:: text.",
+      "required": false
+    }
+  }
+}

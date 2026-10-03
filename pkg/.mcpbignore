@@ -1,0 +1,4 @@
+node_modules/@napi-rs/canvas-linux-*
+node_modules/@napi-rs/canvas-darwin-*
+node_modules/@napi-rs/canvas-android-*
+node_modules/@napi-rs/canvas-win32-arm64-msvc

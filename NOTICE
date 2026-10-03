@@ -1,0 +1,13 @@
+clio-mcp – MCP server for Clio Manage
+Copyright 2026 marshall1727
+
+Licensed under the Apache License, Version 2.0.
+
+This product is not affiliated with, endorsed by or supported by Clio
+(Themis Solutions Inc.) or Anthropic, PBC. "Clio" and "Clio Manage" are
+trademarks of Themis Solutions Inc.; "Claude" is a trademark of Anthropic, PBC.
+
+The API catalog bundled in src/generated/catalog.json is derived from the
+OpenAPI description of the Clio Manage API v4 published by Clio for its
+developers; it contains only endpoint paths, parameter names and shortened
+field descriptions needed for request validation.

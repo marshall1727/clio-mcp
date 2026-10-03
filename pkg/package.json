@@ -1,0 +1,10 @@
+{
+  "name": "clio-mcp",
+  "version": "1.0.0-beta.1",
+  "private": true,
+  "type": "module",
+  "main": "server/index.js",
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.9"
+  }
+}
