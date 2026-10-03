@@ -6,6 +6,9 @@ on:
     tags: ["v*"]
   pull_request:
 
+permissions:
+  contents: write   # needed to attach the .mcpb to the GitHub Release
+
 jobs:
   check:
     runs-on: ubuntu-latest
