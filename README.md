@@ -57,7 +57,7 @@ Clio's own guide: https://docs.developers.clio.com/api-docs/clio-manage/applicat
 
 ### Step 2 – Install the extension in Claude Desktop
 
-1. Download `clio-mcp-<version>.mcpb` from the [Releases](https://github.com/marshall1727/clio-mcp/releases) page.
+1. Download `clio-mcp-<version>.mcpb` from the [`release/`](https://github.com/marshall1727/clio-mcp/tree/main/release) folder of this repository (open the file and click **Download raw file**), or from the [Releases](https://github.com/marshall1727/clio-mcp/releases) page.
 2. In Claude Desktop open **Settings → Extensions → Advanced settings** and click **Install Extension…**, then pick the downloaded `.mcpb` file. (Double-clicking the file in Explorer works too.)
 3. Claude Desktop shows the extension's settings form (step 3).
 
@@ -176,7 +176,7 @@ npm install
 npm run fetch-spec   # downloads Clio's OpenAPI description into spec/ (not committed)
 npm run catalog      # regenerates src/generated/catalog.json from it
 npm run build        # type-check + bundle → dist/index.js
-npm run pack         # → release/clio-mcp-<version>.mcpb (Windows x64; needs @napi-rs/canvas-win32-x64-msvc in node_modules)
+npm run pack         # → release/clio-mcp-<version>.mcpb (Windows x64; needs @napi-rs/canvas-win32-x64-msvc in node_modules); the built package is committed to release/
 npm test             # type-check + locale catalog consistency
 ```
 

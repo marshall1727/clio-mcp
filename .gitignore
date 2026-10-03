@@ -1,11 +1,9 @@
 node_modules/
 dist/
 dist-mcpb/
-release/
 pkg/server/
 pkg/node_modules/
 spec/
-*.mcpb
 *.log
 .DS_Store
 Thumbs.db
