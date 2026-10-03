@@ -74,7 +74,6 @@ Clio's own guide: https://docs.developers.clio.com/api-docs/clio-manage/applicat
 | Default letterhead / template | Optional. Name (or beginning of the name, or id) of the Clio *Document Template* to use for new documents. Leave empty if you have only one template or want to choose per document. |
 | Per-user letterheads | Optional. If each lawyer has their own letterhead template: `jane@firm.com=Jane_letterhead;john@firm.com=John_letterhead`. The connector picks the template by the e-mail of the signed-in user. |
 | Template for internal documents | Optional. Template used when Claude is asked for an internal document (`kind=internal`). |
-| Hanging indent (cm), Bold labels | Optional formatting for documents generated from text (see *Documents from text* below). |
 
 Save, enable the extension and **restart Claude Desktop**.
 
@@ -110,14 +109,14 @@ Claude passes plain text with a tiny markup; the server converts it into Word pa
 | --- | --- |
 | `# Heading`, `## Sub-heading`, `### Sub-sub-heading` | Heading 2 / 3 / 4 of the template |
 | `[ 1. ] Text…` | Numbered paragraph: number at the margin, text indented (hanging indent, default 1.4 cm) |
-| `Evidence:: Contract dated 1 May 2026` | **Evidence:** in bold, a tab, then the text (any label works with `::`; labels listed in *Bold labels* work with a single colon) |
+| `Evidence:: Contract dated 1 May 2026` | **Evidence:** in bold, a tab, then the text (any label works with `::`) |
 | `- item` | Bullet with indent |
 | `**bold**`, a tab character | Bold run, tab |
 | `:::center Text`, `:::right Text` | Centred / right-aligned paragraph |
 | `---pagebreak---` | Page break |
 | empty line | Empty paragraph |
 
-Header, footer, page numbers and fonts come from the template, so the result looks like a document created with Clio's *New document* function.
+Header, footer, page numbers and fonts come from the template, so the result looks like a document created with Clio's *New document* function. Advanced: the hanging indent (default 1.4 cm) and extra single-colon labels can be set through the environment variables `CLIO_DOCX_INDENT_CM` and `CLIO_DOCX_LABELS` when the server is run outside Claude Desktop.
 
 ## Safety model
 

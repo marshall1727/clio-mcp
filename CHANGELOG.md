@@ -16,7 +16,7 @@ First public version, derived from an internal connector that has been in daily 
 - English as the source language throughout (tool titles, descriptions, parameters, comments); runtime messages go through a small message catalog (`src/i18n.ts`, `src/locales/`) with English and Czech, selected by the *Language of messages* setting (`CLIO_LOCALE`).
 - Bring-your-own Developer Application: region, App Key and App Secret are entered in the extension settings; no credentials are shipped with the package.
 - Letterhead selection without firm-specific defaults: explicit `template`/`template_id` per call, per-user map, firm-wide default template, or the only template in Clio.
-- Configurable formatting for documents generated from text: hanging indent (`CLIO_DOCX_INDENT_CM`), bold labels (`CLIO_DOCX_LABELS`) and the generic `Label:: text` syntax; heading styles are resolved by Word's built-in style names with fallbacks.
+- Documents generated from text: generic `Label:: text` syntax for bold labels; heading styles resolved by Word's built-in style names with fallbacks; hanging indent and extra labels adjustable through environment variables (`CLIO_DOCX_INDENT_CM`, `CLIO_DOCX_LABELS`) – not exposed in the extension settings.
 - `DELETE` is now also refused inside the HTTP client (defence in depth).
 - `npm run fetch-spec` downloads Clio's OpenAPI description; `npm run pack` builds the `.mcpb`.
 - English README with a step-by-step installation guide, SECURITY.md, PRIVACY.md, NOTICE.

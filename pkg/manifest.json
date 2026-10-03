@@ -48,8 +48,6 @@
         "CLIO_DEFAULT_TEMPLATE": "${user_config.default_template}",
         "CLIO_LETTERHEADS": "${user_config.letterheads}",
         "CLIO_INTERNAL_TEMPLATE": "${user_config.internal_template}",
-        "CLIO_DOCX_INDENT_CM": "${user_config.docx_indent_cm}",
-        "CLIO_DOCX_LABELS": "${user_config.docx_labels}",
         "CLIO_LOCALE": "${user_config.locale}"
       }
     }
@@ -341,19 +339,6 @@
       "type": "string",
       "title": "Template for internal documents (optional)",
       "description": "Template name/prefix used when a document is created with kind=internal (e.g. a plain document without letterhead).",
-      "required": false
-    },
-    "docx_indent_cm": {
-      "type": "string",
-      "title": "Hanging indent for numbered paragraphs (cm)",
-      "description": "Indent of the text in numbered paragraphs created from text (default 1.4).",
-      "required": false,
-      "default": "1.4"
-    },
-    "docx_labels": {
-      "type": "string",
-      "title": "Bold labels (optional)",
-      "description": "Semicolon-separated labels that start a line and are rendered bold with a tab, e.g. Evidence;Exhibit. Any line can also use the form Label:: text.",
       "required": false
     }
   }
