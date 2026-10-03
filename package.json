@@ -10,7 +10,15 @@
   },
   "homepage": "https://github.com/marshall1727/clio-mcp#readme",
   "bugs": "https://github.com/marshall1727/clio-mcp/issues",
-  "keywords": ["mcp", "model-context-protocol", "clio", "clio-manage", "legal", "law-firm", "claude"],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "clio",
+    "clio-manage",
+    "legal",
+    "law-firm",
+    "claude"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "engines": {
@@ -32,6 +40,7 @@
     "zod": "^3.25.0"
   },
   "devDependencies": {
+    "@anthropic-ai/mcpb": "^2.1.2",
     "@types/node": "^22.0.0",
     "esbuild": "^0.28.2",
     "typescript": "^5.6.0"
