@@ -2,7 +2,7 @@
 
 An [MCP](https://modelcontextprotocol.io) server that lets Claude work inside your **Clio Manage** account through Clio's official API v4. It is installed as a **Desktop Extension** for Claude Desktop (also available in Cowork) and runs only on your own computer – there is no server in between you and Clio.
 
-> **Status:** 1.0.0-beta.1 · Windows x64 · all Clio regions (US, EU, CA, AU) · licence Apache-2.0
+> **Version:** 1.0.0 · Windows x64 · all Clio regions (US, EU, CA, AU) · licence Apache-2.0
 > This project is not affiliated with Clio or Anthropic.
 
 ## What it does
@@ -149,7 +149,7 @@ The server's messages (previews, errors, notes, the instructions Claude receives
 
 ## Known limitations
 
-- Windows x64 only in this beta (token storage uses Windows DPAPI; the PDF/image renderer is a native module). macOS/Linux are planned.
+- Windows x64 only in this version (token storage uses Windows DPAPI; the PDF/image renderer is a native module). macOS/Linux are planned.
 - Clio's rate limit is 50 requests/minute per user; the connector queues and waits, so very large listings are slow.
 - Field selection follows Clio's rules (nested fields only one level deep); `clio_describe_api {schema: "Matter"}` lists valid fields.
 - Stopping a timer requires `DELETE /timer`, which this connector never sends – stop timers in Clio.
@@ -180,7 +180,7 @@ npm run pack         # → release/clio-mcp-<version>.mcpb (Windows x64; needs @
 npm test             # type-check + locale catalog consistency
 ```
 
-GitHub Actions runs type-check, catalog check, build and a smoke start on every push, packs the `.mcpb` on Windows, and attaches it to the GitHub Release when a `v*` tag is pushed (`git tag v1.0.0-beta.1 && git push --tags`).
+GitHub Actions runs type-check, catalog check, build and a smoke start on every push, packs the `.mcpb` on Windows, and attaches it to the GitHub Release when a `v*` tag is pushed (`git tag v1.0.0 && git push --tags`).
 
 Project layout: `src/index.ts` (server, instructions for the model), `src/config.ts` (settings), `src/oauth.ts` (OAuth with loopback redirect), `src/store.ts` (encrypted token store), `src/client.ts` (HTTP client: refresh, queue, rate limit, paging), `src/catalog.ts` (OpenAPI catalog and request validation), `src/extract.ts` (DOCX/PDF text and page images), `src/docx.ts` (text → DOCX on a template), `src/tools/*` (the tools), `pkg/manifest.json` (Desktop Extension manifest).
 

@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "clio-mcp",
   "display_name": "Clio Manage",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0",
   "description": "Work in Clio Manage from Claude: documents (read, create on letterhead, new versions), time entries, billing data, matters, contacts, tasks, calendar – plus a validated generic API call. Deleting is not possible; write confirmation is configurable.",
   "long_description": "MCP server connecting Claude Desktop (and Cowork) to Clio Manage through the official Clio API v4, in all Clio regions (US, EU, CA, AU).\n\n**55 tools**: OAuth sign-in (tokens encrypted with Windows DPAPI), documents (search, read DOCX/PDF text – scanned pages are returned as images Claude can read –, download for editing, new versions, new documents created on your letterhead/template and saved to a \"Claude\" folder in the matter), time and expense entries, billing data (bills, line items, unbilled matters, outstanding balances), matters, contacts, tasks, calendar, notes, communications, users, custom fields; and a generic API call validated against Clio's OpenAPI description.\n\n**Safety model**: **DELETE is never performed** (not even through the generic API call); every write tool can return a preview, and the *Write confirmation* setting can require your approval for every write; every call is written to a local audit log.\n\nYou need your own Clio Developer Application (App Key and App Secret) – see the README for a step-by-step guide.",
   "author": {

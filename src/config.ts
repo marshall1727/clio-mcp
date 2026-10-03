@@ -104,7 +104,7 @@ export const config = (() => {
     docxIndentTwips,
     docxLabels,
     name: "clio-mcp",
-    version: "1.0.0-beta.1",
+    version: "1.0.0",
   };
 })();
 

@@ -8,7 +8,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - macOS and Linux builds (Keychain / Secret Service token store, native renderer for other platforms).
 - Optional listing in the Clio App Directory.
 
-## [1.0.0-beta.1] – 2026-10-03
+## [1.0.0] – 2026-10-03
 
 First public version, derived from an internal connector that has been in daily use since September 2026 (internal versions 0.1–0.3.3).
 
