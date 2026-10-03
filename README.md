@@ -177,7 +177,10 @@ npm run fetch-spec   # downloads Clio's OpenAPI description into spec/ (not comm
 npm run catalog      # regenerates src/generated/catalog.json from it
 npm run build        # type-check + bundle → dist/index.js
 npm run pack         # → release/clio-mcp-<version>.mcpb (Windows x64; needs @napi-rs/canvas-win32-x64-msvc in node_modules)
+npm test             # type-check + locale catalog consistency
 ```
+
+GitHub Actions runs type-check, catalog check, build and a smoke start on every push, packs the `.mcpb` on Windows, and attaches it to the GitHub Release when a `v*` tag is pushed (`git tag v1.0.0-beta.1 && git push --tags`).
 
 Project layout: `src/index.ts` (server, instructions for the model), `src/config.ts` (settings), `src/oauth.ts` (OAuth with loopback redirect), `src/store.ts` (encrypted token store), `src/client.ts` (HTTP client: refresh, queue, rate limit, paging), `src/catalog.ts` (OpenAPI catalog and request validation), `src/extract.ts` (DOCX/PDF text and page images), `src/docx.ts` (text → DOCX on a template), `src/tools/*` (the tools), `pkg/manifest.json` (Desktop Extension manifest).
 

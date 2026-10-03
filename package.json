@@ -30,7 +30,9 @@
     "start": "node dist/index.js",
     "fetch-spec": "node tools/fetch-spec.mjs",
     "catalog": "node tools/gen-catalog.mjs",
-    "pack": "node tools/pack.mjs"
+    "pack": "node tools/pack.mjs",
+    "check-locales": "node tools/check-locales.mjs",
+    "test": "npm run typecheck && npm run check-locales"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

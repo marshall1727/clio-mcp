@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run check-locales
+      - run: npm run build
+      - name: Smoke-start the server and list tools
+        run: |
+          printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
+          | CLIO_REGION=us timeout 20 node dist/index.js 2>/dev/null \
+          | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const n=s.split("\n").filter(Boolean).map(JSON.parse).find(m=>m.id===2).result.tools.length;console.log(n,"tools");if(n<50)process.exit(1)})'
+
+  pack-windows:
+    needs: check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run pack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clio-mcp-mcpb
+          path: release/*.mcpb
+          if-no-files-found: error
+      - name: Attach to GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.mcpb
+          generate_release_notes: true
