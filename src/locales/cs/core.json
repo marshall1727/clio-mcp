@@ -19,5 +19,5 @@
   "core.search_detail_hint": "Pro detail zavolejte znovu s method + path.",
   "core.validation_warnings": "\nVarování:\n- {warnings}",
   "core.validation_failed": "Požadavek neodeslán – validace proti OpenAPI:\n- {errors}{warnings}\n(Pro odeslání i přes chyby použijte skip_validation=true.)",
-  "core.api_request_preview": "NÁHLED (neodesláno). Pro provedení zopakujte s confirm=true.\n{method} {url}\nquery: {query}\nbody: {body}{warnings}"
+  "core.api_request_preview": "NÁHLED (neodesláno). Pro provedení ukažte náhled uživateli a po souhlasu zopakujte s confirm nastaveným na níže uvedený token.\n{method} {url}\nquery: {query}\nbody: {body}{warnings}"
 }

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { apiRequest, apiList, apiListAll } from "../client.js";
 import { loadTokens } from "../store.js";
 import { t } from "../i18n.js";
-import { text, json, wrap, preview, confirmSchema, compact, dateSchema, type Registrar } from "./common.js";
+import { text, json, wrap, preview, confirmSchema, compact, dateSchema, type Registrar, type Confirm } from "./common.js";
 
 const MATTER_FIELDS =
   "id,display_number,number,description,status,billing_method,billable,open_date,close_date,pending_date,location,client_reference,last_activity_date,created_at,updated_at,client{id,name,type},responsible_attorney{id,name},originating_attorney{id,name},practice_area{id,name},matter_stage{id,name},folder{id}";
@@ -67,7 +67,7 @@ export const registerMatters: Registrar = (server) => {
     "clio_matter_create",
     {
       title: "Create matter",
-      description: "Creates a new matter: client (client_id), description, status, billing method, responsible attorney (defaults to the signed-in user), practice area, custom fields. Write operation – requires confirm=true.",
+      description: "Creates a new matter: client (client_id), description, status, billing method, responsible attorney (defaults to the signed-in user), practice area, custom fields. Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         client_id: z.number().int(),
         description: z.string(),
@@ -84,7 +84,7 @@ export const registerMatters: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_matter_create", async (a: { client_id: number; description: string; status?: string; billing_method?: string; billable?: boolean; responsible_attorney_id?: number; originating_attorney_id?: number; practice_area_id?: number; open_date?: string; client_reference?: string; location?: string; custom_field_values?: { custom_field_id: number; value: unknown }[]; confirm?: boolean }) => {
+    wrap("clio_matter_create", async (a: { client_id: number; description: string; status?: string; billing_method?: string; billable?: boolean; responsible_attorney_id?: number; originating_attorney_id?: number; practice_area_id?: number; open_date?: string; client_reference?: string; location?: string; custom_field_values?: { custom_field_id: number; value: unknown }[]; confirm?: Confirm }) => {
       const me = loadTokens()?.user?.id;
       const body = compact({
         client: { id: a.client_id },
@@ -110,7 +110,7 @@ export const registerMatters: Registrar = (server) => {
     "clio_matter_update",
     {
       title: "Update matter",
-      description: "Updates a matter: description, status (open/pending/closed), responsible attorney, practice area, custom fields, close date etc. Write operation – requires confirm=true.",
+      description: "Updates a matter: description, status (open/pending/closed), responsible attorney, practice area, custom fields, close date etc. Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         matter_id: z.number().int(),
         description: z.string().optional(),
@@ -125,7 +125,7 @@ export const registerMatters: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_matter_update", async (a: { matter_id: number; description?: string; status?: string; close_date?: string; responsible_attorney_id?: number; practice_area_id?: number; client_reference?: string; location?: string; billable?: boolean; custom_field_values?: { id?: number; custom_field_id: number; value: unknown }[]; confirm?: boolean }) => {
+    wrap("clio_matter_update", async (a: { matter_id: number; description?: string; status?: string; close_date?: string; responsible_attorney_id?: number; practice_area_id?: number; client_reference?: string; location?: string; billable?: boolean; custom_field_values?: { id?: number; custom_field_id: number; value: unknown }[]; confirm?: Confirm }) => {
       const body = compact({
         description: a.description,
         status: a.status,
@@ -217,7 +217,7 @@ export const registerMatters: Registrar = (server) => {
     "clio_contact_create",
     {
       title: "Create contact",
-      description: "Creates a person (first_name + last_name) or a company (name) with e-mail addresses, phone numbers, address, tax/VAT number (sales_tax_number) and a link to a company. Write operation – requires confirm=true.",
+      description: "Creates a person (first_name + last_name) or a company (name) with e-mail addresses, phone numbers, address, tax/VAT number (sales_tax_number) and a link to a company. Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         type: z.enum(["Person", "Company"]),
         name: z.string().optional().describe("Company name (Company)"),
@@ -235,7 +235,7 @@ export const registerMatters: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_contact_create", async (a: { type: "Person" | "Company"; name?: string; first_name?: string; last_name?: string; prefix?: string; title?: string; email?: string; phone?: string; address?: Record<string, string | undefined>; company_id?: number; date_of_birth?: string; sales_tax_number?: string; custom_field_values?: { custom_field_id: number; value: unknown }[]; confirm?: boolean }) => {
+    wrap("clio_contact_create", async (a: { type: "Person" | "Company"; name?: string; first_name?: string; last_name?: string; prefix?: string; title?: string; email?: string; phone?: string; address?: Record<string, string | undefined>; company_id?: number; date_of_birth?: string; sales_tax_number?: string; custom_field_values?: { custom_field_id: number; value: unknown }[]; confirm?: Confirm }) => {
       if (a.type === "Company" && !a.name) return text(t("matters.company_requires_name"));
       if (a.type === "Person" && !(a.first_name && a.last_name)) return text(t("matters.person_requires_names"));
       const body = compact({
@@ -264,7 +264,7 @@ export const registerMatters: Registrar = (server) => {
     "clio_contact_update",
     {
       title: "Update contact",
-      description: "Updates a contact's basic details; adds an e-mail address/phone number/address (existing ones are kept). Write operation – requires confirm=true.",
+      description: "Updates a contact's basic details; adds an e-mail address/phone number/address (existing ones are kept). Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         contact_id: z.number().int(),
         name: z.string().optional(),
@@ -281,7 +281,7 @@ export const registerMatters: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_contact_update", async (a: { contact_id: number; name?: string; first_name?: string; last_name?: string; prefix?: string; title?: string; add_email?: string; add_phone?: string; add_address?: Record<string, string | undefined>; company_id?: number; sales_tax_number?: string; custom_field_values?: { id?: number; custom_field_id: number; value: unknown }[]; confirm?: boolean }) => {
+    wrap("clio_contact_update", async (a: { contact_id: number; name?: string; first_name?: string; last_name?: string; prefix?: string; title?: string; add_email?: string; add_phone?: string; add_address?: Record<string, string | undefined>; company_id?: number; sales_tax_number?: string; custom_field_values?: { id?: number; custom_field_id: number; value: unknown }[]; confirm?: Confirm }) => {
       const body = compact({
         name: a.name,
         first_name: a.first_name,
@@ -337,7 +337,7 @@ export const registerMatters: Registrar = (server) => {
     "clio_task_create",
     {
       title: "Create task",
-      description: "Creates a task for a matter (or a general one) with a due date, priority and assignee (defaults to the signed-in user). Write operation – requires confirm=true.",
+      description: "Creates a task for a matter (or a general one) with a due date, priority and assignee (defaults to the signed-in user). Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         name: z.string(),
         description: z.string().optional(),
@@ -351,7 +351,7 @@ export const registerMatters: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_task_create", async (a: { name: string; description?: string; matter_id?: number; due_at?: string; priority?: string; assignee_id?: number; task_type_id?: number; statute_of_limitations?: boolean; notify_assignee?: boolean; confirm?: boolean }) => {
+    wrap("clio_task_create", async (a: { name: string; description?: string; matter_id?: number; due_at?: string; priority?: string; assignee_id?: number; task_type_id?: number; statute_of_limitations?: boolean; notify_assignee?: boolean; confirm?: Confirm }) => {
       const me = loadTokens()?.user?.id;
       const assignee = a.assignee_id ?? me;
       const body = compact({
@@ -376,7 +376,7 @@ export const registerMatters: Registrar = (server) => {
     "clio_task_update",
     {
       title: "Update / complete task",
-      description: "Updates a task (name, description, due date, priority, assignee) or changes its status – status=complete marks the task as done. Write operation – requires confirm=true.",
+      description: "Updates a task (name, description, due date, priority, assignee) or changes its status – status=complete marks the task as done. Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         task_id: z.number().int(),
         name: z.string().optional(),
@@ -388,7 +388,7 @@ export const registerMatters: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_task_update", async (a: { task_id: number; name?: string; description?: string; due_at?: string; priority?: string; status?: string; assignee_id?: number; confirm?: boolean }) => {
+    wrap("clio_task_update", async (a: { task_id: number; name?: string; description?: string; due_at?: string; priority?: string; status?: string; assignee_id?: number; confirm?: Confirm }) => {
       const body = compact({ name: a.name, description: a.description, due_at: a.due_at && a.due_at.length === 10 ? `${a.due_at}T17:00:00` : a.due_at, priority: a.priority, status: a.status, assignee: a.assignee_id ? { id: a.assignee_id, type: "User" } : undefined });
       if (!Object.keys(body).length) return text(t("matters.no_changes"));
       if (!a.confirm) return preview(t("matters.preview_update_task", { id: a.task_id }), body);
@@ -435,7 +435,7 @@ export const registerMatters: Registrar = (server) => {
     "clio_calendar_entry_create",
     {
       title: "Create calendar entry",
-      description: "Creates a calendar entry (hearing, deadline, meeting) in the user's calendar (defaults to the default calendar), optionally linked to a matter, with attendees and an event type. Write operation – requires confirm=true.",
+      description: "Creates a calendar entry (hearing, deadline, meeting) in the user's calendar (defaults to the default calendar), optionally linked to a matter, with attendees and an event type. Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         summary: z.string().describe("Title of the calendar entry"),
         start_at: z.string().describe("ISO date/time, or YYYY-MM-DD for an all-day entry"),
@@ -452,7 +452,7 @@ export const registerMatters: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_calendar_entry_create", async (a: { summary: string; start_at: string; end_at?: string; all_day?: boolean; description?: string; location?: string; matter_id?: number; calendar_id?: number; event_type_id?: number; attendee_calendar_ids?: number[]; attendee_contact_ids?: number[]; send_email_notification?: boolean; confirm?: boolean }) => {
+    wrap("clio_calendar_entry_create", async (a: { summary: string; start_at: string; end_at?: string; all_day?: boolean; description?: string; location?: string; matter_id?: number; calendar_id?: number; event_type_id?: number; attendee_calendar_ids?: number[]; attendee_contact_ids?: number[]; send_email_notification?: boolean; confirm?: Confirm }) => {
       const allDay = a.all_day ?? a.start_at.length === 10;
       const calId = a.calendar_id ?? (await apiRequest<{ data: { default_calendar_id?: number } }>("GET", "/users/who_am_i", { query: { fields: "default_calendar_id" } })).data.data.default_calendar_id;
       if (!calId) return text(t("matters.calendar_not_determined"));
@@ -482,10 +482,10 @@ export const registerMatters: Registrar = (server) => {
     "clio_calendar_entry_update",
     {
       title: "Update calendar entry",
-      description: "Updates the title, time, location, description or matter of a calendar entry. Write operation – requires confirm=true.",
+      description: "Updates the title, time, location, description or matter of a calendar entry. Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: { entry_id: z.number().int(), summary: z.string().optional(), start_at: z.string().optional(), end_at: z.string().optional(), all_day: z.boolean().optional(), description: z.string().optional(), location: z.string().optional(), matter_id: z.number().int().optional(), confirm: confirmSchema },
     },
-    wrap("clio_calendar_entry_update", async ({ entry_id, matter_id, confirm, ...rest }: { entry_id: number; matter_id?: number; confirm?: boolean } & Record<string, unknown>) => {
+    wrap("clio_calendar_entry_update", async ({ entry_id, matter_id, confirm, ...rest }: { entry_id: number; matter_id?: number; confirm?: Confirm } & Record<string, unknown>) => {
       const body = compact({ ...rest, matter: matter_id ? { id: matter_id } : undefined });
       if (!Object.keys(body).length) return text(t("matters.no_changes"));
       if (!confirm) return preview(t("matters.preview_update_calendar_entry", { id: entry_id }), body);
@@ -513,10 +513,10 @@ export const registerMatters: Registrar = (server) => {
     "clio_note_create",
     {
       title: "Add note",
-      description: "Adds a note to a matter or a contact (subject + text). Write operation – requires confirm=true.",
+      description: "Adds a note to a matter or a contact (subject + text). Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: { matter_id: z.number().int().optional(), contact_id: z.number().int().optional(), subject: z.string(), detail: z.string(), date: dateSchema.optional(), confirm: confirmSchema },
     },
-    wrap("clio_note_create", async ({ matter_id, contact_id, subject, detail, date, confirm }: { matter_id?: number; contact_id?: number; subject: string; detail: string; date?: string; confirm?: boolean }) => {
+    wrap("clio_note_create", async ({ matter_id, contact_id, subject, detail, date, confirm }: { matter_id?: number; contact_id?: number; subject: string; detail: string; date?: string; confirm?: Confirm }) => {
       if (!matter_id && !contact_id) return text(t("matters.matter_or_contact_required"));
       const body = compact({ type: matter_id ? "Matter" : "Contact", matter: matter_id ? { id: matter_id } : undefined, contact: contact_id ? { id: contact_id } : undefined, subject, detail, date: date ?? new Date().toISOString().slice(0, 10) });
       if (!confirm) return preview(t("matters.preview_new_note"), body);
@@ -543,7 +543,7 @@ export const registerMatters: Registrar = (server) => {
     "clio_communication_log",
     {
       title: "Log communication",
-      description: "Logs a record of a phone call or an e-mail to a matter (subject, body, date, sender/receiver = user or contact). Write operation – requires confirm=true.",
+      description: "Logs a record of a phone call or an e-mail to a matter (subject, body, date, sender/receiver = user or contact). Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         matter_id: z.number().int(),
         type: z.enum(["PhoneCommunication", "EmailCommunication"]),
@@ -555,7 +555,7 @@ export const registerMatters: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_communication_log", async (a: { matter_id: number; type: string; subject: string; body: string; received_at?: string; contact_id?: number; direction?: string; confirm?: boolean }) => {
+    wrap("clio_communication_log", async (a: { matter_id: number; type: string; subject: string; body: string; received_at?: string; contact_id?: number; direction?: string; confirm?: Confirm }) => {
       const me = loadTokens()?.user?.id;
       const user = me ? [{ id: me, type: "User" }] : [];
       const contact = a.contact_id ? [{ id: a.contact_id, type: "Contact" }] : [];

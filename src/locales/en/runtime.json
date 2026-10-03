@@ -1,7 +1,7 @@
 {
   "runtime.instructions_intro": "Connector for Clio Manage (region {region}). Rules:",
   "runtime.instructions_1": "1) Before first use, check the sign-in (clio_auth_status); if 'not signed in', run clio_authenticate and show the user the URL.",
-  "runtime.instructions_2": "2) All write tools return only a PREVIEW unless confirm=true – show it to the user and perform the write only after they approve.",
+  "runtime.instructions_2": "2) Every write tool uses a preview → confirm handshake. NEVER pass confirm on the first call: call the tool without confirm, show the returned PREVIEW to the user verbatim, wait for their explicit approval in their next message, and only then repeat the call with identical arguments and confirm set to the token from the preview. confirm=true is rejected by the server.",
   "runtime.instructions_3": "3) New documents are created from the firm's letterhead/template: write the full text and pass it in the content parameter of clio_document_create_from_letterhead (preferred – the server fills in the letterhead and uploads the file to the \"{claudeFolder}\" folder of the matter; works without disk access). Do not create files on disk yourself unless the user works in Cowork with a connected folder. Corrections to a document created by Claude: clio_document_write. The connector cannot delete records.",
   "runtime.instructions_4": "4) Read document content (DOCX/PDF) with clio_document_read – it returns the text directly and works without disk access. Use clio_document_download only to edit a file in a connected folder (Cowork).",
   "runtime.instructions_5": "5) When a curated tool is missing, use clio_describe_api and clio_api_request.",

@@ -19,5 +19,5 @@
   "core.search_detail_hint": "For details, call again with method + path.",
   "core.validation_warnings": "\nWarnings:\n- {warnings}",
   "core.validation_failed": "Request not sent – OpenAPI validation:\n- {errors}{warnings}\n(To send despite the errors, use skip_validation=true.)",
-  "core.api_request_preview": "PREVIEW (not sent). To execute, repeat with confirm=true.\n{method} {url}\nquery: {query}\nbody: {body}{warnings}"
+  "core.api_request_preview": "PREVIEW (not sent). To execute, show this to the user and after approval repeat with confirm set to the token below.\n{method} {url}\nquery: {query}\nbody: {body}{warnings}"
 }

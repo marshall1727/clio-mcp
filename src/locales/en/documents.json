@@ -39,7 +39,7 @@
   "documents.template_download_no_url": "The template cannot be downloaded (status {status}).",
   "documents.template_download_failed": "Template download failed: {status}",
   "documents.created_next_step": "The document is in Clio; for changes use clio_document_write (new version from text) or download and edit it in Cowork.",
-  "documents.download_template_next_step": "Fill in the content and upload the file: clio_document_upload {file_path: \"{path}\", matter_id: {matter_id}, confirm: true} – it will be stored in the \"{folder}\" folder of the matter.",
+  "documents.download_template_next_step": "Fill in the content and upload the file: clio_document_upload {file_path: \"{path}\", matter_id: {matter_id}} – it will be stored in the \"{folder}\" folder of the matter.",
   "documents.preview_automation": "Document Automation – generate a document in the matter",
   "documents.automation_done_next_step": "Download for editing: clio_document_download {document_id: {document_id}}",
   "documents.automation_pending_next_step": "Generation is still running; check clio_api_request GET /document_automations/{automation_id}",

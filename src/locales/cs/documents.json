@@ -39,7 +39,7 @@
   "documents.template_download_no_url": "Šablonu nelze stáhnout (status {status}).",
   "documents.template_download_failed": "Stažení šablony selhalo: {status}",
   "documents.created_next_step": "Dokument je v Clio; případné úpravy: clio_document_write (nová verze z textu) nebo stáhnout a upravit v Cowork.",
-  "documents.download_template_next_step": "Doplňte obsah do souboru a nahrajte: clio_document_upload {file_path: \"{path}\", matter_id: {matter_id}, confirm: true} – uloží se do složky „{folder}“ ve spisu.",
+  "documents.download_template_next_step": "Doplňte obsah do souboru a nahrajte: clio_document_upload {file_path: \"{path}\", matter_id: {matter_id}} – uloží se do složky „{folder}“ ve spisu.",
   "documents.preview_automation": "Document Automation – vygenerovat dokument ve spisu",
   "documents.automation_done_next_step": "Stáhněte k editaci: clio_document_download {document_id: {document_id}}",
   "documents.automation_pending_next_step": "Generování ještě běží; zkontrolujte clio_api_request GET /document_automations/{automation_id}",

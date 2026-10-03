@@ -22,7 +22,7 @@ An [MCP](https://modelcontextprotocol.io) server that lets Claude work inside yo
 ## What it deliberately does **not** do
 
 - **Nothing is ever deleted.** The connector has no delete tools and the generic API call refuses the `DELETE` method – both in the tool definition and in the HTTP client. If something needs deleting (a test time entry, a duplicate folder, a timer that must be stopped – Clio stops timers with `DELETE /timer`), do it in Clio itself.
-- **No write without your confirmation.** Every tool that creates or changes data returns a **preview** first; the change is made only when the tool is called again with `confirm=true`, which Claude does after you agree.
+- **No write without your confirmation.** Every tool that creates or changes data returns a **preview** first, together with a one-time confirmation token. The change is made only when the tool is called again with the same arguments and that token – Claude cannot skip the preview (`confirm=true` is rejected by the server), and a token never fits changed arguments.
 - **No bills are created or sent.** Clio's API only lets bills be read and edited; sending invoices to clients stays in Clio.
 - **No way around Clio permissions.** If your Clio role hides something (rates, bills, other users' time), the API returns it as `redacted` and the connector shows exactly that.
 - **No cloud component.** Tokens, the audit log and downloaded documents stay on your computer. The only parties that see your data are Clio and the Claude model you talk to (under your Anthropic plan's terms).
@@ -120,7 +120,7 @@ Header, footer, page numbers and fonts come from the template, so the result loo
 
 ## Safety model
 
-- **Preview → confirm** for every write (`confirm=true` is required; Claude asks you first).
+- **Preview → confirm handshake** for every write: the preview carries a confirmation token bound to the exact arguments; only that token authorises the write. The server rejects `confirm=true` and tokens for changed arguments, so the model must show you the preview before anything is written.
 - **DELETE is impossible.** Not offered as a tool, rejected by `clio_api_request`, and refused again inside the HTTP client.
 - **Audit log** of every call (`%USERPROFILE%\.clio-mcp\audit.jsonl`, append-only; secrets redacted): who, when, which tool, parameters, result.
 - **Tokens** are encrypted with Windows DPAPI (bound to your Windows account and PC); the App Secret lives in the Windows Credential Manager.

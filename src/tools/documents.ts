@@ -5,7 +5,7 @@ import { z } from "zod";
 import { config } from "../config.js";
 import { apiRequest, apiList, apiListAll, ClioApiError } from "../client.js";
 import { loadTokens } from "../store.js";
-import { text, json, wrap, preview, confirmSchema, compact, type Registrar } from "./common.js";
+import { text, json, wrap, preview, confirmSchema, compact, type Registrar, type Confirm } from "./common.js";
 import { extractText, renderPdfPages, normalizeImage, IMAGE_EXT } from "../extract.js";
 import { fillDocxTemplate } from "../docx.js";
 import { t } from "../i18n.js";
@@ -378,7 +378,7 @@ export const registerDocuments: Registrar = (server) => {
     "clio_document_upload_version",
     {
       title: "Upload new document version",
-      description: "Uploads a local file as a new version of an existing document in Clio (previous versions stay in the history). Write operation – requires confirm=true.",
+      description: "Uploads a local file as a new version of an existing document in Clio (previous versions stay in the history). Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         document_id: z.number().int(),
         file_path: z.string().describe("Absolute path to the file on the PC"),
@@ -386,7 +386,7 @@ export const registerDocuments: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_document_upload_version", async ({ document_id, file_path, name, confirm }: { document_id: number; file_path: string; name?: string; confirm?: boolean }) => {
+    wrap("clio_document_upload_version", async ({ document_id, file_path, name, confirm }: { document_id: number; file_path: string; name?: string; confirm?: Confirm }) => {
       if (!fs.existsSync(file_path)) return text(t("documents.file_not_found", { path: file_path }));
       const size = fs.statSync(file_path).size;
       if (!confirm) return preview(t("documents.preview_new_version", { document_id }), { file_path, size, name: name ?? path.basename(file_path) });
@@ -401,7 +401,7 @@ export const registerDocuments: Registrar = (server) => {
       title: "Upload new document (existing file)",
       description:
         `Uploads a local file as a new document into a matter. Without folder_id the document is stored in the "${config.claudeFolderName}" folder in the root of the matter's documents (created if it does not exist) – every document created by Claude belongs there. ` +
-        "For new letters/filings first use clio_document_create_from_letterhead (letterhead), then this tool. Write operation – requires confirm=true.",
+        "For new letters/filings first use clio_document_create_from_letterhead (letterhead), then this tool. Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         file_path: z.string().describe("Absolute path to the file"),
         matter_id: z.number().int().describe("Matter ID"),
@@ -411,7 +411,7 @@ export const registerDocuments: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_document_upload", async ({ file_path, matter_id, folder_id, name, document_category_id, confirm }: { file_path: string; matter_id: number; folder_id?: number; name?: string; document_category_id?: number; confirm?: boolean }) => {
+    wrap("clio_document_upload", async ({ file_path, matter_id, folder_id, name, document_category_id, confirm }: { file_path: string; matter_id: number; folder_id?: number; name?: string; document_category_id?: number; confirm?: Confirm }) => {
       if (!fs.existsSync(file_path)) return text(t("documents.file_not_found", { path: file_path }));
       if (!confirm) return preview(t("documents.preview_new_document"), { file_path, size: fs.statSync(file_path).size, matter_id, folder: folder_id ?? t("documents.claude_folder_default", { folder: config.claudeFolderName }), name: name ?? path.basename(file_path), document_category_id });
       const target = folder_id ? { id: folder_id, created: false } : await ensureClaudeFolder(matter_id);
@@ -452,7 +452,7 @@ export const registerDocuments: Registrar = (server) => {
       title: "New document from letterhead",
       description:
         "Creates a new document in a matter from a letterhead / template (Document Template in Clio): selected by template_id or template, otherwise by configuration (user → template map, default template, kind=internal → internal template). " +
-        `RECOMMENDED APPROACH (works everywhere, even without disk access): pass the finished text in the content parameter – the server inserts it into the letterhead (docx) and uploads it to the "${config.claudeFolderName}" folder in the matter (confirm=true). ` +
+        `RECOMMENDED APPROACH (works everywhere, even without disk access): pass the finished text in the content parameter – the server inserts it into the letterhead (docx) and uploads it to the "${config.claudeFolderName}" folder in the matter (preview, then confirm with the token). ` +
         "content format: empty line = empty paragraph; '# ' / '## ' / '### ' = Heading 2/3/4 of the template; **bold**; '[ 1. ] text' = numbered paragraph (number in the margin, text with a hanging indent); 'Label:: text' = bold label + tab; '- ' bullet; '\\t' tab; '---pagebreak---' page break; ':::center text' centred, ':::right text' right-aligned. Follow the user's conventions for the document structure (addressee, reference numbers, date, heading, enclosures) if they state them. " +
         "Alternatives: without content, mode='download' only downloads the template for manual editing (Cowork with a connected folder); mode='automation' lets Clio generate the document via Document Automation. Without a letterhead only with without_letterhead=true. " +
         "Do not create empty documents: if the user has not provided the text (and the document type, addressee, matter), ask before calling this tool. Choose filename from the document type and addressee (e.g. 'Letter_to_opposing_counsel_2026-10-03.docx') unless the user names it.",
@@ -473,7 +473,7 @@ export const registerDocuments: Registrar = (server) => {
     },
     wrap(
       "clio_document_create_from_letterhead",
-      async ({ matter_id, filename, kind, template_id, template, mode, formats, without_letterhead, target_dir, content, keep_local_copy, confirm }: { matter_id: number; filename: string; kind?: "user" | "internal"; template_id?: number; template?: string; mode?: "download" | "automation"; formats?: ("original" | "pdf")[]; without_letterhead?: boolean; target_dir?: string; content?: string; keep_local_copy?: boolean; confirm?: boolean }) => {
+      async ({ matter_id, filename, kind, template_id, template, mode, formats, without_letterhead, target_dir, content, keep_local_copy, confirm }: { matter_id: number; filename: string; kind?: "user" | "internal"; template_id?: number; template?: string; mode?: "download" | "automation"; formats?: ("original" | "pdf")[]; without_letterhead?: boolean; target_dir?: string; content?: string; keep_local_copy?: boolean; confirm?: Confirm }) => {
         const matter = await apiRequest<{ data: { id: number; display_number: string; description?: string; client?: { name?: string } } }>("GET", `/matters/${matter_id}`, {
           query: { fields: "id,display_number,description,client{id,name}" },
         });
@@ -564,7 +564,7 @@ export const registerDocuments: Registrar = (server) => {
       description:
         "Creates a new version of an existing DOCX document in Clio from the given text (same markdown-lite format as clio_document_create_from_letterhead). " +
         "The document body is REPLACED by the new text; header, footer and styles are kept (template = the document itself, or base='letterhead' = the current letterhead of the user). " +
-        "Suitable for fixing documents created by Claude; for third-party documents with complex formatting prefer downloading and editing in Cowork. Write operation – confirm=true.",
+        "Suitable for fixing documents created by Claude; for third-party documents with complex formatting prefer downloading and editing in Cowork. Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         document_id: z.number().int(),
         content: z.string().describe("New complete text of the document (markdown-lite)"),
@@ -572,7 +572,7 @@ export const registerDocuments: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_document_write", async ({ document_id, content, base, confirm }: { document_id: number; content: string; base?: "document" | "letterhead"; confirm?: boolean }) => {
+    wrap("clio_document_write", async ({ document_id, content, base, confirm }: { document_id: number; content: string; base?: "document" | "letterhead"; confirm?: Confirm }) => {
       const meta = await apiRequest<{ data: { name: string; filename?: string; matter?: { id: number; display_number?: string } } }>("GET", `/documents/${document_id}`, { query: { fields: "id,name,filename,matter{id,display_number}" } });
       const d = meta.data.data;
       const name = d.filename || d.name;
@@ -632,7 +632,7 @@ export const registerDocuments: Registrar = (server) => {
     "clio_folder_create",
     {
       title: "Create folder",
-      description: "Creates a folder in a matter (parent = Matter) or inside another folder (parent = Folder). Write operation – requires confirm=true.",
+      description: "Creates a folder in a matter (parent = Matter) or inside another folder (parent = Folder). Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         name: z.string(),
         matter_id: z.number().int().optional(),
@@ -640,7 +640,7 @@ export const registerDocuments: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_folder_create", async ({ name, matter_id, parent_folder_id, confirm }: { name: string; matter_id?: number; parent_folder_id?: number; confirm?: boolean }) => {
+    wrap("clio_folder_create", async ({ name, matter_id, parent_folder_id, confirm }: { name: string; matter_id?: number; parent_folder_id?: number; confirm?: Confirm }) => {
       if (!matter_id && !parent_folder_id) return text(t("documents.folder_create_need_parent"));
       const body = { name, parent: parent_folder_id ? { id: parent_folder_id, type: "Folder" } : { id: matter_id!, type: "Matter" } };
       if (!confirm) return preview(t("documents.preview_new_folder"), body);
@@ -653,10 +653,10 @@ export const registerDocuments: Registrar = (server) => {
     "clio_document_comment_add",
     {
       title: "Comment on document",
-      description: "Adds a comment to the current version of a document (visible in Clio next to the document). Write operation – requires confirm=true.",
+      description: "Adds a comment to the current version of a document (visible in Clio next to the document). Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: { document_id: z.number().int(), message: z.string(), confirm: confirmSchema },
     },
-    wrap("clio_document_comment_add", async ({ document_id, message, confirm }: { document_id: number; message: string; confirm?: boolean }) => {
+    wrap("clio_document_comment_add", async ({ document_id, message, confirm }: { document_id: number; message: string; confirm?: Confirm }) => {
       const body = { message, item: { id: document_id } };
       if (!confirm) return preview(t("documents.preview_comment", { document_id }), body);
       const r = await apiRequest<{ data: unknown }>("POST", "/comments", { query: { fields: "id,message,created_at,creator{id,name}" }, body });

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { apiRequest, apiList, apiListAll } from "../client.js";
 import { loadTokens } from "../store.js";
 import { t } from "../i18n.js";
-import { text, json, wrap, preview, confirmSchema, compact, hoursToSeconds, dateSchema, type Registrar } from "./common.js";
+import { text, json, wrap, preview, confirmSchema, compact, hoursToSeconds, dateSchema, type Registrar, type Confirm } from "./common.js";
 
 const ACT_FIELDS =
   "id,type,date,quantity_in_hours,quantity,price,total,note,billed,on_bill,non_billable,no_charge,flat_rate,created_at,updated_at,matter{id,display_number},user{id,name},activity_description{id,name},expense_category{id,name},bill{id,number,state}";
@@ -109,7 +109,7 @@ export const registerActivities: Registrar = (server) => {
       title: "Record time",
       description:
         "Records a time entry (TimeEntry) on a matter: date, hours (decimal, e.g. 0.5), note, optionally activity description (activity_description_id), rate (price per hour), user (default: signed-in user), billable/non-billable. " +
-        "Write operation – requires confirm=true; without it returns a preview.",
+        "Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         matter_id: z.number().int(),
         date: dateSchema.describe("Date of the work YYYY-MM-DD"),
@@ -124,7 +124,7 @@ export const registerActivities: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_time_entry_create", async (a: { matter_id: number; date: string; hours: number; note: string; activity_description_id?: number; price?: number; user_id?: number; non_billable?: boolean; no_charge?: boolean; reference?: string; confirm?: boolean }) => {
+    wrap("clio_time_entry_create", async (a: { matter_id: number; date: string; hours: number; note: string; activity_description_id?: number; price?: number; user_id?: number; non_billable?: boolean; no_charge?: boolean; reference?: string; confirm?: Confirm }) => {
       const userId = a.user_id ?? loadTokens()?.user?.id;
       const body = compact({
         type: "TimeEntry",
@@ -149,7 +149,7 @@ export const registerActivities: Registrar = (server) => {
     "clio_expense_create",
     {
       title: "Record expense",
-      description: "Records an expense (ExpenseEntry) on a matter: date, amount (price × quantity), description, optionally expense category. Write operation – requires confirm=true.",
+      description: "Records an expense (ExpenseEntry) on a matter: date, amount (price × quantity), description, optionally expense category. Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         matter_id: z.number().int(),
         date: dateSchema,
@@ -161,7 +161,7 @@ export const registerActivities: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_expense_create", async (a: { matter_id: number; date: string; price: number; quantity?: number; note: string; expense_category_id?: number; non_billable?: boolean; confirm?: boolean }) => {
+    wrap("clio_expense_create", async (a: { matter_id: number; date: string; price: number; quantity?: number; note: string; expense_category_id?: number; non_billable?: boolean; confirm?: Confirm }) => {
       const body = compact({ type: "ExpenseEntry", date: a.date, price: a.price, quantity: a.quantity ?? 1, note: a.note, matter: { id: a.matter_id }, expense_category: a.expense_category_id ? { id: a.expense_category_id } : undefined, non_billable: a.non_billable });
       if (!a.confirm) return preview(t("activities.preview_new_expense"), body);
       const r = await apiRequest<{ data: unknown }>("POST", "/activities", { query: { fields: ACT_FIELDS }, body });
@@ -173,7 +173,7 @@ export const registerActivities: Registrar = (server) => {
     "clio_activity_update",
     {
       title: "Update time entry / expense",
-      description: "Updates an existing entry (as long as it has not been billed): date, hours, note, rate, activity description, billable/non-billable. Write operation – requires confirm=true.",
+      description: "Updates an existing entry (as long as it has not been billed): date, hours, note, rate, activity description, billable/non-billable. Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         activity_id: z.number().int(),
         date: dateSchema.optional(),
@@ -188,7 +188,7 @@ export const registerActivities: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_activity_update", async (a: { activity_id: number; date?: string; hours?: number; quantity?: number; note?: string; price?: number; activity_description_id?: number; matter_id?: number; non_billable?: boolean; no_charge?: boolean; confirm?: boolean }) => {
+    wrap("clio_activity_update", async (a: { activity_id: number; date?: string; hours?: number; quantity?: number; note?: string; price?: number; activity_description_id?: number; matter_id?: number; non_billable?: boolean; no_charge?: boolean; confirm?: Confirm }) => {
       const body = compact({
         date: a.date,
         quantity: a.hours !== undefined ? hoursToSeconds(a.hours) : a.quantity,
@@ -213,7 +213,7 @@ export const registerActivities: Registrar = (server) => {
     "clio_timer",
     {
       title: "Timer",
-      description: "Shows the signed-in user's running timer, or starts a new timer on a matter (action=start; creates an in-progress TimeEntry). Stopping: action=stop. Starting/stopping is a write operation – confirm=true.",
+      description: "Shows the signed-in user's running timer, or starts a new timer on a matter (action=start; creates an in-progress TimeEntry). Stopping: action=stop. Starting/stopping is a write operation – confirm (preview → token).",
       inputSchema: {
         action: z.enum(["status", "start", "stop"]).optional().describe("Default status"),
         matter_id: z.number().int().optional().describe("For start"),
@@ -222,7 +222,7 @@ export const registerActivities: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_timer", async ({ action, matter_id, note, activity_description_id, confirm }: { action?: string; matter_id?: number; note?: string; activity_description_id?: number; confirm?: boolean }) => {
+    wrap("clio_timer", async ({ action, matter_id, note, activity_description_id, confirm }: { action?: string; matter_id?: number; note?: string; activity_description_id?: number; confirm?: Confirm }) => {
       const act = action ?? "status";
       if (act === "status") {
         try {
@@ -319,7 +319,7 @@ export const registerActivities: Registrar = (server) => {
     "clio_bill_update",
     {
       title: "Update bill",
-      description: "Updates the bill header (subject, memo, issue date, due date, state – e.g. draft → awaiting_approval, void). Write operation – requires confirm=true. The connector does not send bills to clients.",
+      description: "Updates the bill header (subject, memo, issue date, due date, state – e.g. draft → awaiting_approval, void). Write operation – preview first, then confirm with the token from the preview. The connector does not send bills to clients.",
       inputSchema: {
         bill_id: z.number().int(),
         subject: z.string().optional(),
@@ -331,7 +331,7 @@ export const registerActivities: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_bill_update", async ({ bill_id, confirm, ...changes }: { bill_id: number; confirm?: boolean } & Record<string, unknown>) => {
+    wrap("clio_bill_update", async ({ bill_id, confirm, ...changes }: { bill_id: number; confirm?: Confirm } & Record<string, unknown>) => {
       const body = compact(changes);
       if (!Object.keys(body).length) return text(t("activities.no_changes"));
       if (!confirm) {
@@ -347,7 +347,7 @@ export const registerActivities: Registrar = (server) => {
     "clio_line_item_update",
     {
       title: "Update bill line item",
-      description: "Updates a bill line item (description, quantity, price, date, note); with update_original_record=true the change is also written back to the original time entry. Write operation – requires confirm=true.",
+      description: "Updates a bill line item (description, quantity, price, date, note); with update_original_record=true the change is also written back to the original time entry. Write operation – preview first, then confirm with the token from the preview.",
       inputSchema: {
         line_item_id: z.number().int(),
         description: z.string().optional(),
@@ -359,7 +359,7 @@ export const registerActivities: Registrar = (server) => {
         confirm: confirmSchema,
       },
     },
-    wrap("clio_line_item_update", async ({ line_item_id, confirm, ...changes }: { line_item_id: number; confirm?: boolean } & Record<string, unknown>) => {
+    wrap("clio_line_item_update", async ({ line_item_id, confirm, ...changes }: { line_item_id: number; confirm?: Confirm } & Record<string, unknown>) => {
       const body = compact(changes);
       if (!Object.keys(body).length) return text(t("activities.no_changes"));
       if (!confirm) return preview(t("activities.preview_update_line_item", { id: line_item_id }), body);

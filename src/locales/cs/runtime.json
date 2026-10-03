@@ -1,7 +1,7 @@
 {
   "runtime.instructions_intro": "Konektor na Clio Manage (region {region}). Pravidla:",
   "runtime.instructions_1": "1) Před prvním použitím ověřte přihlášení (clio_auth_status); při 'nepřihlášeno' spusťte clio_authenticate a ukažte uživateli URL.",
-  "runtime.instructions_2": "2) Všechny zápisové nástroje vrací bez confirm=true jen NÁHLED – ukažte ho uživateli a proveďte zápis až po jeho souhlasu.",
+  "runtime.instructions_2": "2) Každý zápisový nástroj používá postup náhled → potvrzení. NIKDY nepředávejte confirm hned při prvním volání: zavolejte nástroj bez confirm, vrácený NÁHLED ukažte uživateli doslova, počkejte na jeho výslovný souhlas v další zprávě a teprve pak zopakujte volání se stejnými argumenty a confirm nastaveným na token z náhledu. confirm=true server odmítá.",
   "runtime.instructions_3": "3) Nové dokumenty vznikají z hlavičkového papíru / šablony kanceláře: napište celý text a předejte ho v parametru content nástroje clio_document_create_from_letterhead (preferováno – server vyplní hlavičkový papír a nahraje soubor do složky „{claudeFolder}“ ve spisu; funguje i bez přístupu k disku). Soubory na disku sami netvořte, pokud uživatel nepracuje v Cowork s připojenou složkou. Opravy dokumentu vytvořeného Claudem: clio_document_write. Mazání záznamů konektor neumožňuje.",
   "runtime.instructions_4": "4) Obsah dokumentů (DOCX/PDF) čtěte nástrojem clio_document_read – vrací text přímo, funguje i bez přístupu k disku. clio_document_download používejte jen pro editaci souboru v připojené složce (Cowork).",
   "runtime.instructions_5": "5) Když kurátorovaný nástroj chybí, použijte clio_describe_api a clio_api_request.",

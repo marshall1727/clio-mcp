@@ -1,3 +1,6 @@
 {
-  "common.preview_header": "NÁHLED – nic nebylo odesláno. Pro provedení zopakujte volání s confirm=true."
+  "common.preview_header": "NÁHLED – nic nebylo odesláno. Ukažte náhled uživateli a počkejte na jeho výslovný souhlas. Poté zopakujte volání se stejnými argumenty a confirm nastaveným na níže uvedený token.",
+  "common.preview_token_line": "confirm_token: {token}",
+  "common.confirm_true_rejected": "Zápis odmítnut: confirm=true se nepřijímá. Nejprve zavolejte nástroj bez confirm (vrátí náhled a potvrzovací token), ukažte náhled uživateli a po jeho souhlasu zopakujte volání s confirm nastaveným na tento token.",
+  "common.confirm_token_invalid": "Zápis odmítnut: potvrzovací token neodpovídá těmto argumentům (argumenty se změnily nebo token patří k jinému volání). Zavolejte nástroj bez confirm pro nový náhled, ukažte ho uživateli a potvrďte novým tokenem."
 }

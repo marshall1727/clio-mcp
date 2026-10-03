@@ -5,7 +5,7 @@ import { loadTokens, storeBackend } from "../store.js";
 import { startAuthentication, getPendingAuth, logout } from "../oauth.js";
 import { apiRequest, rememberUser, rateLimitSnapshot } from "../client.js";
 import { catalog, searchOps, matchOp, describeOp, validateRequest, schemaFields } from "../catalog.js";
-import { text, json, wrap, type Registrar } from "./common.js";
+import { text, json, wrap, confirmSchema, type Confirm, type Registrar } from "./common.js";
 import { t, locale } from "../i18n.js";
 
 export const registerCore: Registrar = (server) => {
@@ -147,26 +147,26 @@ export const registerCore: Registrar = (server) => {
       description:
         "Performs a GET, POST or PATCH on any Clio API v4 endpoint (path relative to /api/v4, e.g. '/matters' or '/matters/123'; or a full URL from meta.paging.next). DELETE is not allowed. " +
         "The request is validated against the OpenAPI catalog (unknown path = error; unknown parameters = warning). For GET pass query.fields (without it the API returns only id and etag). " +
-        "The POST/PATCH body is automatically wrapped in {\"data\": ...}. Writes require confirm=true – without it the tool returns only a preview of the request.",
+        "The POST/PATCH body is automatically wrapped in {\"data\": ...}. Writes follow the preview → confirm handshake: the first call returns a preview with a confirmation token; repeat with confirm set to that token after the user approves.",
       inputSchema: {
         method: z.enum(["GET", "POST", "PATCH"]).describe("HTTP method"),
         path: z.string().describe("Path relative to /api/v4 or a full URL"),
         query: z.record(z.union([z.string(), z.number(), z.boolean()])).optional().describe("Query parameters, e.g. {fields: 'id,display_number', limit: 50, order: 'id(asc)'}"),
         body: z.record(z.unknown()).optional().describe("Request body for POST/PATCH (the content of 'data')"),
-        confirm: z.boolean().optional().describe("Must be true for POST/PATCH, otherwise the request is not sent"),
+        confirm: confirmSchema,
         skip_validation: z.boolean().optional().describe("true = do not block the request because of validation errors (e.g. a new endpoint not in the catalog)"),
       },
     },
     wrap(
       "clio_api_request",
-      async ({ method, path, query, body, confirm, skip_validation }: { method: "GET" | "POST" | "PATCH"; path: string; query?: Record<string, string | number | boolean>; body?: Record<string, unknown>; confirm?: boolean; skip_validation?: boolean }) => {
+      async ({ method, path, query, body, confirm, skip_validation }: { method: "GET" | "POST" | "PATCH"; path: string; query?: Record<string, string | number | boolean>; body?: Record<string, unknown>; confirm?: Confirm; skip_validation?: boolean }) => {
         const v = validateRequest(method, path, query, body);
         const warnings = v.warnings.length ? t("core.validation_warnings", { warnings: v.warnings.join("\n- ") }) : "";
         if (v.errors.length && !skip_validation) {
           return text(t("core.validation_failed", { errors: v.errors.join("\n- "), warnings }));
         }
         if (method !== "GET" && !confirm) {
-          return text(
+          const r = text(
             t("core.api_request_preview", {
               method,
               url: `${config.apiBase}${path}`,
@@ -175,6 +175,8 @@ export const registerCore: Registrar = (server) => {
               warnings,
             })
           );
+          r._preview = true;
+          return r;
         }
         const r = await apiRequest(method, path, { query, body });
         const out: Record<string, unknown> = { status: r.status, rate_limit: r.rateLimit };
